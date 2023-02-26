@@ -7,7 +7,7 @@ import umbrella_mesh
 import matplotlib.pyplot as plt
 
 
-def read_data(filepath, material_params = [1400, 0.35, None, None, 14000, 0.35, None, None], handleBoundary = False, handlePivots = True):
+def read_data(filepath, material_params = [1400, 0.35, None, None, 1400*10, 0.35, None, None], handleBoundary = False, handlePivots = True, isHex = False):
     input_data = json.load(gzip.open(filepath))
     
     # Global config Data
@@ -33,7 +33,7 @@ def read_data(filepath, material_params = [1400, 0.35, None, None, 14000, 0.35, 
     input_data['segment_normals'] = np.array(input_data['segment_normals'])
     input_data['joint_type'] = []
     for vid, v_label in enumerate(input_data['v_labels']):
-        if v_label[0] == 'O': # Rigid joint
+        if v_label[0] == 'O' or v_label == 'TH' or v_label == 'BH': # Rigid joint
             # print(input_data['vertices'][vid][2], input_data['vertices'][vid][2]*input_data['bbox_diagonal'])
             input_data['joint_type'].append(umbrella_mesh.JointType.Rigid)
             assert input_data['is_rigid'][vid] 
@@ -52,7 +52,7 @@ def read_data(filepath, material_params = [1400, 0.35, None, None, 14000, 0.35, 
     for eid, e_label in enumerate(input_data['e_labels']):
         if e_label[0] == 'P': # Plate
             input_data['segment_type'].append(umbrella_mesh.SegmentType.Plate)
-        elif e_label == 'TA' or e_label == 'ANB': # Arm
+        elif e_label == 'TA' or e_label == 'ANB' or e_label == 'HT' or e_label == 'NBH': # Arm
             input_data['segment_type'].append(umbrella_mesh.SegmentType.Arm)
         else: assert 0
        
@@ -67,8 +67,38 @@ def read_data(filepath, material_params = [1400, 0.35, None, None, 14000, 0.35, 
             if uid_list[1] == -1:
                 input_data['uid'][idx] = [uid_list[0]]
 
+    if isHex:
+        num_uids = len(input_data['base_mesh_v'])
+
+        # umbrella connectivity
+        adj = np.zeros((num_uids, num_uids))
+        input_data['umbrella_connectivity'] = []
+        for fid, face in enumerate(input_data['base_mesh_f']):
+            v1, v2, v3 = face
+            adj[v1, v2] = 1
+            adj[v1, v3] = 1
+            adj[v2, v3] = 1
+            adj[v2, v1] = 1
+            adj[v3, v1] = 1
+            adj[v3, v2] = 1
+
+        for vid in range(num_uids):
+            for vid_adj in range(num_uids):
+                if vid_adj <= vid: continue
+                if adj[vid, vid_adj]:
+                    input_data['umbrella_connectivity'].append([vid, vid_adj])
+    else:
+        num_uids = len(input_data['base_mesh_f'])
+
+        # umbrella connectivity
+        input_data['umbrella_connectivity'] = []
+        for fid1, face1 in enumerate(input_data['base_mesh_f']):
+            for fid2, face2 in enumerate(input_data['base_mesh_f']):
+                if fid2 <= fid1: continue
+                if len(list(set(face1) & set(face2))) == 2: 
+                    input_data['umbrella_connectivity'].append([fid1, fid2])
+    
     # Uid - Top-Bot Joint Map
-    num_uids = len(input_data['base_mesh_f'])
     uidTopBotMap = [[-1, -1] for _ in range(num_uids)]
     for vid, uid in enumerate(input_data['uid']):
         if input_data['v_labels'][vid] == 'OT':
@@ -78,18 +108,9 @@ def read_data(filepath, material_params = [1400, 0.35, None, None, 14000, 0.35, 
             assert len(uid) == 1
             uidTopBotMap[uid[0]][1] = vid
     for joints in uidTopBotMap:
-        assert -1 not in joints
+        assert -1 not in joints, joints
     input_data['uid_top_bot_map'] = np.array(uidTopBotMap, dtype=np.int32)
-
-
-    # umbrella connectivity
-    input_data['umbrella_connectivity'] = []
-    for fid1, face1 in enumerate(input_data['base_mesh_f']):
-        for fid2, face2 in enumerate(input_data['base_mesh_f']):
-            if fid2 <= fid1: continue
-            if len(list(set(face1) & set(face2))) == 2: 
-                input_data['umbrella_connectivity'].append([fid1, fid2])
-
+        
     for i in range(len(input_data['midpoint_offsets_A'])):
         for j in range(len(input_data['midpoint_offsets_A'][i])):
             input_data['midpoint_offsets_A'][i][j] = np.array(input_data['midpoint_offsets_A'][i][j])
@@ -100,24 +121,36 @@ def read_data(filepath, material_params = [1400, 0.35, None, None, 14000, 0.35, 
     # correspondences
     for cid, corr in enumerate(input_data['correspondence']):
         if corr == None:
-            assert input_data['joint_type'][cid] != umbrella_mesh.JointType.X
+            # assert input_data['joint_type'][cid] != umbrella_mesh.JointType.X
             input_data['correspondence'][cid] = np.array([0.0, 0.0, 0.0])
         else:
             assert  input_data['joint_type'][cid] == umbrella_mesh.JointType.X
             input_data['correspondence'][cid] = np.array(corr)
     input_data['correspondence'] = np.array(input_data['correspondence'])
 
-    E1, nu1, t1, w1, E2, nu2, t2, w2 = material_params
-    if t1 == None and 'thickness' in input_data: t1 = input_data['thickness']
-    if t2 == None and 'thickness' in input_data: t2 = input_data['thickness']
-    if t1 == None: t1 = 3.0/input_data['bbox_diagonal']
-    if t2 == None: t2 = 3.0/input_data['bbox_diagonal']
-    
-    if w1 == None and 'width' in input_data: w1 = input_data['width']
-    if w2 == None and 'width' in input_data: w2 = input_data['width']
-    if w1 == None: w1 = 5.0/input_data['bbox_diagonal']
-    if w2 == None: w2 = 5.0/input_data['bbox_diagonal']
 
+    material_params = np.array(material_params)
+    init_offset = 0 # backward compatibility of material_params
+    if len(material_params) != 8: init_offset = 1
+    if None in material_params[init_offset + 2::4]:
+        material_params[init_offset + 2::4][material_params[init_offset + 2::4] == None] = input_data['thickness'] if 'thickness' in input_data else 3.0/input_data['bbox_diagonal']
+    else:
+        material_params[init_offset + 2::4] /= input_data['bbox_diagonal']
+    if None in material_params[init_offset + 3::4]:
+        material_params[init_offset + 3::4][material_params[init_offset + 3::4] == None] = input_data['width'] if 'width' in input_data else 5.0/input_data['bbox_diagonal']
+    else:
+        material_params[init_offset + 3::4] /= input_data['bbox_diagonal']
+    
+    # E1, nu1, t1, w1, E2, nu2, t2, w2 = material_params
+    # if t1 == None and 'thickness' in input_data: t1 = input_data['thickness']
+    # if t2 == None and 'thickness' in input_data: t2 = input_data['thickness']
+    # if t1 == None: t1 = 3.0/input_data['bbox_diagonal']
+    # if t2 == None: t2 = 3.0/input_data['bbox_diagonal']
+    
+    # if w1 == None and 'width' in input_data: w1 = input_data['width']
+    # if w2 == None and 'width' in input_data: w2 = input_data['width']
+    # if w1 == None: w1 = 5.0/input_data['bbox_diagonal']
+    # if w2 == None: w2 = 5.0/input_data['bbox_diagonal']
 
     if handleBoundary:
         input_data = add_boundary_arms(input_data, handlePivots = handlePivots)
@@ -137,6 +170,7 @@ def read_data(filepath, material_params = [1400, 0.35, None, None, 14000, 0.35, 
     umbrellas = []
     for uid in range(len(input_data['uid_top_bot_map'])):
         tj, bj, corr = *input_data['uid_top_bot_map'][uid], input_data['plate_correspondence'][uid]
+        if corr == []: corr = [0, 0, 0]
         umbrellas.append(umbrella_mesh.UmbrellaMeshIO.Umbrella(tj, bj, corr))
     
     # Collect segment's endpoint joint connection data (joint, is_A, offset tuples)
@@ -146,7 +180,8 @@ def read_data(filepath, material_params = [1400, 0.35, None, None, 14000, 0.35, 
             for s, o in zip(input_data[AB + '_segments'][ji], input_data['midpoint_offsets_' + AB][ji]):
                 segment_endpoint_data[s].append((ji, AB == 'A', o))
     segments = [umbrella_mesh.UmbrellaMeshIO.Segment(t, [umbrella_mesh.UmbrellaMeshIO.JointConnection(*data) for data in endpoints], n) for t, endpoints, n in zip(input_data['segment_type'], segment_endpoint_data, input_data['segment_normals'])]
-    io = umbrella_mesh.UmbrellaMeshIO(joints, segments, umbrellas, input_data['umbrella_connectivity'], [E1, nu1, t1, w1, E2, nu2, t2, w2], input_data['target_v'], input_data['target_f'])
+    # io = umbrella_mesh.UmbrellaMeshIO(joints, segments, umbrellas, input_data['umbrella_connectivity'], [E1, nu1, t1, w1, E2, nu2, t2, w2], input_data['target_v'], input_data['target_f'])
+    io = umbrella_mesh.UmbrellaMeshIO(joints, segments, umbrellas, input_data['umbrella_connectivity'], material_params, [], [])
     io.validate()
 
     return input_data, io
@@ -169,7 +204,7 @@ def normalize(vec):
 
 
 
-def update_optimized_json(input_json_path, optim_heights_unscaled, optim_spacing_factor, output_json_path, handleBoundary = False, handlePivots = True):
+def update_optimized_json(input_json_path, optim_heights_unscaled, optim_spacing_factor, output_json_path, handleBoundary = False, handlePivots = True, isHex = False):
     input_data = json.load(gzip.open(input_json_path))
     if 'umbrella_connectivity' not in input_data.keys(): # to check if the boundary has been processed
         input_data, _ = read_data(input_json_path, handleBoundary = handleBoundary, handlePivots = handlePivots)
@@ -177,13 +212,36 @@ def update_optimized_json(input_json_path, optim_heights_unscaled, optim_spacing
 
     
     
-    # umbrella connectivity
-    input_data['umbrella_connectivity'] = []
-    for fid1, face1 in enumerate(input_data['base_mesh_f']):
-        for fid2, face2 in enumerate(input_data['base_mesh_f']):
-            if fid2 <= fid1: continue
-            if len(list(set(face1) & set(face2))) == 2: 
-                input_data['umbrella_connectivity'].append([fid1, fid2])
+    if isHex:
+        num_uids = len(input_data['base_mesh_v'])
+
+        # umbrella connectivity
+        adj = np.zeros((num_uids, num_uids))
+        input_data['umbrella_connectivity'] = []
+        for fid, face in enumerate(input_data['base_mesh_f']):
+            v1, v2, v3 = face
+            adj[v1, v2] = 1
+            adj[v1, v3] = 1
+            adj[v2, v3] = 1
+            adj[v2, v1] = 1
+            adj[v3, v1] = 1
+            adj[v3, v2] = 1
+
+        for vid in range(num_uids):
+            for vid_adj in range(num_uids):
+                if vid_adj <= vid: continue
+                if adj[vid, vid_adj]:
+                    input_data['umbrella_connectivity'].append([vid, vid_adj])
+    else:
+        num_uids = len(input_data['base_mesh_f'])
+
+        # umbrella connectivity
+        input_data['umbrella_connectivity'] = []
+        for fid1, face1 in enumerate(input_data['base_mesh_f']):
+            for fid2, face2 in enumerate(input_data['base_mesh_f']):
+                if fid2 <= fid1: continue
+                if len(list(set(face1) & set(face2))) == 2: 
+                    input_data['umbrella_connectivity'].append([fid1, fid2])
                 
     # Data for Tim - 3D Printing
     nbr_map = nbrMapFromEdges(input_data['umbrella_connectivity'], len(input_data['flip_bits']))
@@ -229,7 +287,7 @@ def update_optimized_json(input_json_path, optim_heights_unscaled, optim_spacing
         json.dump(tim_data, outfile, indent=4)
 
 
-def write_deformed_config(curr_um, input_path, output_path, write_stress = False, is_rest_state = False, handleBoundary = False, handlePivots = True, reg_data = None):
+def write_deformed_config(curr_um, input_path, output_path, write_stress = False, is_rest_state = False, handleBoundary = False, handlePivots = True, reg_data = None, isHex = False):
     points = []
     normals = []
     cross_sections = []
@@ -237,7 +295,7 @@ def write_deformed_config(curr_um, input_path, output_path, write_stress = False
     twisting_stresses = []
     input_data = json.load(gzip.open(input_path))
     if 'umbrella_connectivity' not in input_data.keys(): # to check if the boundary has been processed
-        input_data, _ = read_data(input_path, handleBoundary = handleBoundary, handlePivots = handlePivots)
+        input_data, _ = read_data(input_path, handleBoundary = handleBoundary, handlePivots = handlePivots, isHex = isHex)
     
     if write_stress:
         bending_stress = curr_um.maxBendingStresses()
@@ -362,9 +420,12 @@ def json_serializable(input_data):
             input_data[key] = serialize_list(input_data[key])
 
     return input_data
+
             
 
 def add_boundary_arms(input_data, handlePivots = True):
+
+    # Check the case when handlePivots is false!! NOT WORKING
     for vid1, v in enumerate(input_data['vertices']):
         if input_data['v_labels'][vid1] == 'PT' and len(input_data['midpoint_offsets_B'][vid1]) == 0:# Doesn't have an arm :(
             uid = input_data['uid'][vid1][0]
@@ -407,6 +468,7 @@ def add_boundary_arms(input_data, handlePivots = True):
                     input_data['midpoint_offsets_B'][vid1].append(seg_normal_dir*input_data['thickness']/2)
                     input_data['midpoint_offsets_B'][vid2].append(seg_normal_dir*input_data['thickness']/2)
                     
+                    print(len(input_data['midpoint_offsets_A'][vid1]), input_data['midpoint_offsets_A'][vid1][0], input_data['thickness']/2)
                     assert len(input_data['midpoint_offsets_A'][vid1]) == 1 and np.linalg.norm(input_data['midpoint_offsets_A'][vid1][0]) == 0
                     assert len(input_data['midpoint_offsets_A'][vid2]) == 1 and np.linalg.norm(input_data['midpoint_offsets_A'][vid2][0]) == 0
                     input_data['midpoint_offsets_A'][vid1][0] = np.array([0,0,1.0])*input_data['thickness']/2

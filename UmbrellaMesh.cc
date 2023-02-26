@@ -173,18 +173,74 @@ void UmbrellaMesh_T<Real_>::set(const UmbrellaMeshIO &io, size_t subdivision) {
     updateSourceFrame();
 
     // Load material from IO
-    
-    Real_ E1 = io.material_params[0], nu1 = io.material_params[1];
-    Real_ E2 = io.material_params[4], nu2 = io.material_params[5];
-    std::vector<double>   armCrossSection = {io.material_params[2], io.material_params[3]};
-    std::vector<double> plateCrossSection = {io.material_params[6], io.material_params[7]};
+    Real_ E_plate, nu_plate;
+    std::vector<double> plateCrossSection;
 
+    std::vector<Real_> E_arm, nu_arm;
+    std::vector< std::vector<double> > armCrossSection;
+    // Real_ E_arm, E_plate, nu_arm, nu_plate;
+    // std::vector<double>   armCrossSection, plateCrossSection;
+    
+    if (io.material_params.size() == 8) {
+        E_arm = {io.material_params[0]}; nu_arm = {io.material_params[1]};
+        E_plate = io.material_params[4]; nu_plate = io.material_params[5];
+        if (io.circular_cross_section)
+            armCrossSection = {{io.material_params[3]/2.0, io.material_params[3]/2.0}};
+        else armCrossSection = {{io.material_params[2], io.material_params[3]}};
+        plateCrossSection = {io.material_params[6], io.material_params[7]};
+    }
+    else if (int(io.material_params[0]) == 1){
+        E_arm = {io.material_params[1]}; nu_arm = {io.material_params[2]};
+        E_plate = E_arm[0]; nu_plate = nu_arm[0];
+        if (io.circular_cross_section)
+            armCrossSection = {{io.material_params[4]/2.0, io.material_params[4]/2.0}};
+        else armCrossSection = {{io.material_params[3], io.material_params[4]}};
+        plateCrossSection = {io.material_params[3], io.material_params[4]};
+    }
+    else if (int(io.material_params[0]) == 2){
+        E_arm = {io.material_params[1]}; nu_arm = {io.material_params[2]};
+        E_plate = io.material_params[5]; nu_plate = io.material_params[6];
+
+        if (io.circular_cross_section)
+            armCrossSection = {{io.material_params[4]/2.0, io.material_params[4]/2.0}};
+        else armCrossSection = {{io.material_params[3], io.material_params[4]}};
+        plateCrossSection = {io.material_params[7], io.material_params[8]};
+    }
+    else { // assumed UmbrellaIO.h validations pass
+        for(size_t idx = 0; idx < int(io.material_params[0]); ++idx) {
+            if (idx == int(io.material_params[0]) - 1) {
+                E_plate = io.material_params[1 + idx*4];
+                nu_plate = io.material_params[1 + idx*4 + 1];
+                plateCrossSection = {io.material_params[1 + idx*4 + 2], io.material_params[1 + idx*4 + 3]};
+            }
+            E_arm.push_back(io.material_params[1 + idx*4]);
+            nu_arm.push_back(io.material_params[1 + idx*4 + 1]);
+            armCrossSection.push_back({io.material_params[1 + idx*4 + 2], io.material_params[1 + idx*4 + 3]});
+            if (io.circular_cross_section)
+                armCrossSection.push_back({io.material_params[1 + idx*4 + 3], io.material_params[1 + idx*4 + 3]});
+            else armCrossSection.push_back({io.material_params[1 + idx*4 + 2], io.material_params[1 + idx*4 + 3]});
+        }
+    }
+    
+    
     // Note: the material object must retain the cross-section mesh to enable stress analysis.
-      m_armMaterial = RodMaterial(std::string("rectangle"), stripAutoDiff(E1), stripAutoDiff(nu1), stripAutoDiff(  armCrossSection), RodMaterial::StiffAxis::D1, /* keepCrossSectionMesh = */ true);
-    m_plateMaterial = RodMaterial(std::string("rectangle"), stripAutoDiff(E2), stripAutoDiff(nu2), stripAutoDiff(plateCrossSection), RodMaterial::StiffAxis::D1, /* keepCrossSectionMesh = */ true);
-      m_armMaterial.stressAnalysis(); // Ensure the   arm material stress analysis object is cached/shared across all rods
+    m_plateMaterial = RodMaterial(std::string("rectangle"), stripAutoDiff(E_plate), stripAutoDiff(nu_plate), stripAutoDiff(plateCrossSection), RodMaterial::StiffAxis::D1, /* keepCrossSectionMesh = */ true);
     m_plateMaterial.stressAnalysis(); // Ensure the plate material stress analysis object is cached/shared across all rods
+    
+    m_armMaterial.clear();
+    m_armMaterial.reserve(E_arm.size());
+    for (size_t idx = 0; idx < E_arm.size(); ++idx) {
+        
+        if (io.circular_cross_section)
+            m_armMaterial.push_back(RodMaterial(std::string("ellipse"), stripAutoDiff(E_arm[idx]), stripAutoDiff(nu_arm[idx]), stripAutoDiff(  armCrossSection[idx]), RodMaterial::StiffAxis::D1, /* keepCrossSectionMesh = */ true));
+        else 
+            m_armMaterial.push_back(RodMaterial(std::string("rectangle"), stripAutoDiff(E_arm[idx]), stripAutoDiff(nu_arm[idx]), stripAutoDiff(  armCrossSection[idx]), RodMaterial::StiffAxis::D1, /* keepCrossSectionMesh = */ true));
+    }
+    for (size_t idx = 0; idx < m_armMaterial.size(); ++idx) m_armMaterial[idx].stressAnalysis(); // Arm Material stress analysis object is shared across rods of an umbrella?
+
+    
     setMaterial(m_armMaterial, m_plateMaterial);
+    
     m_initMinRestLen = minRestLength();
 
     // Initialize the deployment weight vector.
@@ -195,7 +251,8 @@ void UmbrellaMesh_T<Real_>::set(const UmbrellaMeshIO &io, size_t subdivision) {
 
     m_clearCache();
 
-    set_target_surface(io.target_v, io.target_f);
+    if (io.target_v.size() > 0) set_target_surface(io.target_v, io.target_f);
+    
     {
         Vec3 bbMin, bbMax;
         std::vector<Pt3> pts = deformedPoints();
@@ -349,11 +406,27 @@ void UmbrellaMesh_T<Real_>::m_constructArmRestLenToEdgeRestLenMapTranspose() {
 
 template<typename Real_>
 void UmbrellaMesh_T<Real_>::setMaterial(const RodMaterial &armMat, const RodMaterial &plateMat) {
-      m_armMaterial =   armMat;
+    m_armMaterial.emplace_back(armMat);
     m_plateMaterial = plateMat;
 
     for (auto &s : m_segments)
         s.rod.setMaterial((s.segmentType() == SegmentType::Plate) ? plateMat : armMat);
+
+    // Changing the material can change the cross-section, resulting in a
+    // different normal offset magnitude at the joints.
+    // We update the terminal edges accordingly by re-applying the joint
+    // configuration:
+    setDoFs(getDoFs(), false);
+    updateSourceFrame();
+}
+
+template<typename Real_>
+void UmbrellaMesh_T<Real_>::setMaterial(const std::vector<RodMaterial> &armMat, const RodMaterial &plateMat) {
+    m_armMaterial =   armMat;
+    m_plateMaterial = plateMat;
+
+    for (size_t si = 0; si < m_segments.size(); ++si)
+        m_segments[si].rod.setMaterial((m_segments[si].segmentType() == SegmentType::Plate) ? plateMat : armMat[(armMat.size() == 1) ? 0 : getArmUID(si)]);
 
     // Changing the material can change the cross-section, resulting in a
     // different normal offset magnitude at the joints.

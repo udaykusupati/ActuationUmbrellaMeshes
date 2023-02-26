@@ -16,14 +16,14 @@ struct UmbrellaMeshIO {
     enum class AngleBoundEnforcement { Disable, Hard, Penalty };
 
     struct Joint {
-        Joint(JointType t, const V3d &p, const V3d &b, const V3d &n, double a, const std::vector<size_t> &uid, const V3d corr)
+        Joint(JointType t, const V3d &p, const V3d &b, const V3d &n, double a, const std::vector<size_t> &uid, const V3d corr = V3d::Zero())
             : type(t), position(p), bisector(b), normal(n), tgt_pos(corr), alpha(a), umbrella_ID(uid) { }
 
         JointType type;
         V3d position, bisector, normal, tgt_pos;
         double alpha; // Initial opening angle
 
-        std::vector<size_t> umbrella_ID; // Umbrella(s) to which this joint is associated
+        std::vector<size_t> umbrella_ID; // Umbrella(s) to which this joint is associated.
     };
 
     // A segment endpoint's connection with a joint
@@ -44,7 +44,7 @@ struct UmbrellaMeshIO {
     };
 
     struct Umbrella {
-        Umbrella(size_t j_top, size_t j_bot, const V3d corr)
+        Umbrella(size_t j_top, size_t j_bot, const V3d corr = V3d::Zero())
             : top_joint(j_top), bottom_joint(j_bot), tgt_pos(corr) { }
         size_t top_joint, bottom_joint;
         V3d tgt_pos;
@@ -55,15 +55,18 @@ struct UmbrellaMeshIO {
                    const std::vector<Umbrella> &u,
                    const std::vector<std::vector<size_t>> &connectivity,
                    const std::vector<double> &m,
-                   const Eigen::MatrixXd &V, const Eigen::MatrixXi &F)
-        : joints(j), segments(s), umbrellas(u), umbrella_connectivity(connectivity), material_params(m), target_v(V), target_f(F)
+                   const Eigen::MatrixXd &V, const Eigen::MatrixXi &F,
+                   const bool &ccs = false)
+        : joints(j), segments(s), umbrellas(u), umbrella_connectivity(connectivity), material_params(m), target_v(V), target_f(F), circular_cross_section(ccs)
     { }
 
     std::vector<Joint>    joints;
     std::vector<Segment>  segments;
     std::vector<Umbrella> umbrellas;
     std::vector<std::vector<size_t>> umbrella_connectivity; // Edge list based on how umbrellas are connected - [uid1, uid2]
-    std::vector<double> material_params; // [E1, nu1, thickness1, width1, E2, nu2, thickness2, width2]
+    
+    std::vector<double> material_params; // [num_materials, E1, nu1, thickness1, width1, E2, nu2, thickness2, width2, ...]
+    bool circular_cross_section;
     Eigen::MatrixXd target_v;
     Eigen::MatrixXi target_f;
 
@@ -101,7 +104,11 @@ struct UmbrellaMeshIO {
             if (e.size() != 2) throw std::runtime_error("Umbrella connectivity must comprise of edges made of uids");
         }
 
-        if (material_params.size() != 8) throw std::runtime_error("Material params must be [E1, nu1, thickness1, width1, E2, nu2, thickness2, width2]");
+        // Backward compatibility if material_params.size() == 8
+        if (material_params.size() != 8) {
+            if (material_params.size() != 1 + int(material_params[0])*4) throw std::runtime_error("Material params must be [num_materials, E1, nu1, thickness1, width1, E2, nu2, thickness2, width2, ...]"); 
+            if (int(material_params[0]) != 1 && int(material_params[0]) != 2 && int(material_params[0]) != umbrellas.size() + 1) throw std::runtime_error("Number of material params must either be 1 (Uniform), 2 (Different for plates), 1 + numUmbrellas (same for plates, different across umbrellas)");
+        }
     }
 };
 

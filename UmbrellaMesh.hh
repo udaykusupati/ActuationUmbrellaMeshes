@@ -13,6 +13,17 @@
 #include "UmbrellaMeshIO.hh"
 #include "LinearActuator.hh"
 #include "ConstraintBarrier.hh"
+// #include "fit_nurbs_surface.hh"
+
+// #include <pcl/point_cloud.h>
+// #include <pcl/point_types.h>
+// #include <pcl/io/pcd_io.h>
+
+// // #include <pcl/visualization/pcl_visualizer.h>
+// #include <pcl/surface/on_nurbs/fitting_surface_tdm.h>
+// #include <pcl/surface/on_nurbs/fitting_curve_2d_asdm.h>
+// #include <pcl/surface/on_nurbs/triangulation.h>
+// #include <pcl/io/obj_io.h>
 
 struct TargetSurfaceFitter; //Defined in TargetSurfaceFitter.hh
 
@@ -79,10 +90,10 @@ struct UmbrellaMesh_T {
     template<typename Real2_>
     void set(const UmbrellaMesh_T<Real2_> &umbrella_mesh) { setState(umbrella_mesh.serialize()); }
 
-    template<typename DeploymentHeight>
+    template<typename DeploymentHeight, typename ArmMaterial>
     using SerializedState_T = std::tuple<std::vector<Joint>, std::vector<RodSegment>,
                                        DesignParameterConfig, 
-                                       RodMaterial, RodMaterial, Real_,
+                                       ArmMaterial, RodMaterial, Real_,
                                        SuiteSparseMatrix,
                                        VecX, std::vector<size_t>, std::vector<size_t>,
                                        VecX,
@@ -94,13 +105,15 @@ struct UmbrellaMesh_T {
                                        std::vector<std::vector<size_t>>, Real_, 
                                        LinearActuators<UmbrellaMesh_T>>;
 
-    using StateV1 = SerializedState_T<Real_>; // Backward-compatible version for before the per-umbrella targets were introduced.
-    using StateV2 = SerializedState_T<VecX>;
-    using State   = StateV2;
+    using StateV1 = SerializedState_T<Real_, RodMaterial>; // Backward-compatible version for before the per-umbrella deployment target heights were introduced.
+    using StateV2 = SerializedState_T<VecX, RodMaterial>; // Backward-compatible version for before the per-umbrella materials were introduced.
+    using StateV3 = SerializedState_T<VecX, std::vector<RodMaterial> >;
+    using State   = StateV3;
 
     // Needed for the pickling to work.
-    void set(const StateV1 &state) { setState(state); }
-    void set(const State   &state) { setState(state); }
+    void set(const StateV1 &state) { setMaterialV1(state); setState(state); }
+    void set(const StateV2 &state) { setMaterialV1(state); setState(state); }
+    void set(const State   &state) { setMaterialV2(state); setState(state); }
     static State serialize(const UmbrellaMesh_T &um) { return um.serialize(); }
 
     State serialize() const {
@@ -126,7 +139,7 @@ struct UmbrellaMesh_T {
     void setState(const SState &state) {
         using Real2_ = std::tuple_element_t<5, SState>; // type of m_initMinRestLen...
 
-        m_armMaterial                                  = std::get< 3>(state);
+        // m_armMaterial                                  = std::get< 3>(state);
         m_plateMaterial                                = std::get< 4>(state);
         m_initMinRestLen                               = std::get< 5>(state);
         m_armRestLenToEdgeRestLenMapTranspose          = std::get< 6>(state);
@@ -161,6 +174,23 @@ struct UmbrellaMesh_T {
 
         set<Real2_>(std::get< 0>(state), std::get< 1>(state), std::get< 2>(state));
     }
+    
+    template<class SState>
+    void setMaterialV1(const SState &state) {
+        RodMaterial armMaterial = std::get<3>(state);
+        m_armMaterial.clear();
+        m_armMaterial.reserve(1);
+        m_armMaterial.push_back(armMaterial);
+    }
+    
+    template<class SState>
+    void setMaterialV2(const SState &state) {
+        auto armMaterial = std::get<3>(state);
+        m_armMaterial.clear();
+        m_armMaterial.reserve(armMaterial.size());
+        for (const auto &m : armMaterial) m_armMaterial.emplace_back(m);
+    }
+
 
     // Set umbrella mesh by copying the passed joints, segments and homogeneous material.
     // Note: "down-casting from autodiff to non-autodiff number type is unsupported!
@@ -203,11 +233,13 @@ struct UmbrellaMesh_T {
     void set_segment(RodSegment new_seg, size_t i) { m_segments.at(i) = new_seg; }
 
 	// Set the same material for every rod in the umbrella mesh.
-    void setMaterial(const RodMaterial &material) { setMaterial(material, material); }
+    void setMaterial(const RodMaterial &material) { setMaterial({material}, material); }
     // Use different materials for the "arm" segments from the "plate" segments.
     void setMaterial(const RodMaterial &armMaterial, const RodMaterial &plateMaterial);
-
-    const RodMaterial &  armMaterial() const { return   m_armMaterial; }
+    // Use different materials for the "arm" segments (possibly different for each umbrella) from the "plate" segments.
+    void setMaterial(const std::vector<RodMaterial> &armMaterial, const RodMaterial &plateMaterial);
+    
+    const std::vector<RodMaterial> &  armMaterial() const { return   m_armMaterial; }
     const RodMaterial &plateMaterial() const { return m_plateMaterial; }
 
     // Set the current adapted curve frame as the source for parallel transport.
@@ -238,12 +270,20 @@ struct UmbrellaMesh_T {
     // derivatives).
     bool disableRotationParametrizationUpdates = false;
 
+    // const std::vector<size_t> & getSegmentumbrellaID(const size_t &segmentID) const {
+    //     std::vector<size_t> uid;
+    //     RodSegment seg = segment(segmentID);
+    //     for (size_t idx = 0; idx < seg.numJoints() && joint(seg.joint(idx)).umbrellaID().size() == 1; ++idx) uid.push_back(joint(seg.joint(idx)).umbrellaID()[0]);
+    //     if (uid.size() != 1) throw std::runtime_error("Assumption that one joint of segment belongs to completely one umbrella and the other might be shared is wrong");
+    //     return uid;
+    // }
+
     ////////////////////////////////////////////////////////////////////////////
     // DoFs and Energy Values.
     ////////////////////////////////////////////////////////////////////////////
 
     size_t numDoF() const;
-    size_t numSegments() const { return segments().size(); }
+    size_t numSegments() const { return m_segments.size(); }
     size_t numJoints()   const { return m_joints.size(); }
     size_t numRigidJoints()   const { return m_numRigidJoints; }
     size_t numCenterlinePos() const { return m_dofOffsetForCenterlinePos.size(); }
@@ -1717,6 +1757,113 @@ struct UmbrellaMesh_T {
         return result;
     }
 
+    // void fitNurbsSurface() {    
+        // parameters
+        
+        // pcl::on_nurbs::NurbsDataSurface data;
+        // for (unsigned ui = 0; ui < numUmbrellas(); ui++) {
+        //     auto pos = 0.5 * (stripAutoDiff(joint(getUmbrellaCenterJi(ui, 0)).pos()) + stripAutoDiff(joint(getUmbrellaCenterJi(ui, 1)).pos()));
+        //     data.interior.push_back(pos);
+        // } 
+
+        
+        // unsigned order (3);
+        // unsigned refinement (5);
+        // unsigned iterations (10);
+        // unsigned mesh_resolution (256);
+        // pcl::on_nurbs::FittingSurface::Parameter params;
+        // params.interior_smoothness = 0.2;
+        // params.interior_weight = 1.0;
+        // params.boundary_smoothness = 0.2;
+        // params.boundary_weight = 0.0;
+        // // initialize
+        // printf ("  surface fitting ...\n");
+        // ON_NurbsSurface nurbs = pcl::on_nurbs::FittingSurface::initNurbsPCABoundingBox (order, &data);
+        // pcl::on_nurbs::FittingSurface fit (&data, nurbs);
+        // //  fit.setQuiet (false); // enable/disable debug output
+        
+        
+        // // mesh for visualization
+        // pcl::PolygonMesh mesh;
+        // pcl::PointCloud<pcl::PointXYZ>::Ptr mesh_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+        // std::vector<pcl::Vertices> mesh_vertices;
+        // std::string mesh_id = "mesh_nurbs";
+        // pcl::on_nurbs::Triangulation::convertSurface2PolygonMesh (fit.m_nurbs, mesh, mesh_resolution);
+        // // viewer.addPolygonMesh (mesh, mesh_id);
+        // // surface refinement
+        // for (unsigned i = 0; i < refinement; i++)
+        // {
+        //     fit.refine (0);
+        //     fit.refine (1);
+        //     fit.assemble (params);
+        //     fit.solve ();
+        //     pcl::on_nurbs::Triangulation::convertSurface2Vertices (fit.m_nurbs, mesh_cloud, mesh_vertices, mesh_resolution);
+        //     // viewer.updatePolygonMesh<pcl::PointXYZ> (mesh_cloud, mesh_vertices, mesh_id);
+        //     // viewer.spinOnce ();
+        // }
+        // // surface fitting with final refinement level
+        // for (unsigned i = 0; i < iterations; i++)
+        // {
+        //     fit.assemble (params);
+        //     fit.solve ();
+        //     pcl::on_nurbs::Triangulation::convertSurface2Vertices (fit.m_nurbs, mesh_cloud, mesh_vertices, mesh_resolution);
+        //     // viewer.updatePolygonMesh<pcl::PointXYZ> (mesh_cloud, mesh_vertices, mesh_id);
+        //     // viewer.spinOnce ();
+        // }
+        // // ############################################################################
+        // // fit B-spline curve
+        // // parameters
+        // pcl::on_nurbs::FittingCurve2dAPDM::FitParameter curve_params;
+        // curve_params.addCPsAccuracy = 5e-2;
+        // curve_params.addCPsIteration = 3;
+        // curve_params.maxCPs = 200;
+        // curve_params.accuracy = 1e-3;
+        // curve_params.iterations = 100;
+        // curve_params.param.closest_point_resolution = 0;
+        // curve_params.param.closest_point_weight = 1.0;
+        // curve_params.param.closest_point_sigma2 = 0.1;
+        // curve_params.param.interior_sigma2 = 0.00001;
+        // curve_params.param.smooth_concavity = 1.0;
+        // curve_params.param.smoothness = 1.0;
+        // // initialisation (circular)
+        // printf ("  curve fitting ...\n");
+        // pcl::on_nurbs::NurbsDataCurve2d curve_data;
+        // curve_data.interior = data.interior_param;
+        // curve_data.interior_weight_function.push_back (true);
+        // ON_NurbsCurve curve_nurbs = pcl::on_nurbs::FittingCurve2dAPDM::initNurbsCurve2D (order, curve_data.interior);
+        // // curve fitting
+        // pcl::on_nurbs::FittingCurve2dASDM curve_fit (&curve_data, curve_nurbs);
+        // // curve_fit.setQuiet (false); // enable/disable debug output
+        // curve_fit.fitting (curve_params);
+        // // visualizeCurve (curve_fit.m_nurbs, fit.m_nurbs, viewer);
+        // // ############################################################################
+        // // triangulation of trimmed surface
+        // printf ("  triangulate trimmed surface ...\n");
+        // // viewer.removePolygonMesh (mesh_id);
+        // pcl::on_nurbs::Triangulation::convertTrimmedSurface2PolygonMesh (fit.m_nurbs, curve_fit.m_nurbs, mesh,
+        //                                                                 mesh_resolution);
+        // // viewer.addPolygonMesh (mesh, mesh_id);
+
+        // pcl::io::saveOBJFile("test_mesh.obj", mesh);
+        
+        // pcl::PointCloud<pcl::PointXYZ>::Ptr allVertices(new pcl::PointCloud<pcl::PointXYZ>);
+        // pcl::fromPCLPointCloud2(mesh.cloud, *allVertices);
+        // Vn.resize(allVertices->size(), 3);
+        // Fn.resize(mesh.polygons.size(), 3);
+        // for (size_t i = 0; i < allVertices->size(); ++i) {
+        //     auto &p = allVertices->points[i];
+        //     Vn.row(i) = Eigen::Vector3d(p.x, p.y, p.z);
+        // }
+        // for (size_t i = 0; i < mesh.polygons.size(); ++i) {
+        //     for (size_t j = 0; j < mesh.polygons[i].vertices.size(); ++j) {
+        //         if (j == 3) throw std::runtime_error("Not a triangle mesh");
+        //         Fn(i, j) = mesh.polygons[i].vertices[j];
+        //     }
+        // }
+    // }
+
+
+
 protected:
     template<class F>
     void m_assembleSegmentGradient(const F &gradientGetter, VecX_T<Real_> &g,
@@ -1737,7 +1884,8 @@ protected:
 
     // Material used to initialize rods (useful if they are recreated by
     // RodLinkage::set after the linkage's material has been configured).
-    RodMaterial m_armMaterial, m_plateMaterial;
+    RodMaterial m_plateMaterial;
+    std::vector<RodMaterial> m_armMaterial;
 
     DesignParameterConfig m_umbrella_dPC;
     // Offset in the full list of linkage DoFs of the DoFs for each segment/joint

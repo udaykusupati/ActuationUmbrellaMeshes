@@ -5,7 +5,11 @@ import numpy as np
 from PIL import ImageColor
 import umbrella_mesh
 
-def get_color_field(obj, input_data):
+# from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+
+viridis = cm.get_cmap('viridis', 512)
+
+def get_color_field(obj, input_data, uidBased = False):
     def new_colors(self):
         return self.data
     
@@ -20,6 +24,7 @@ def get_color_field(obj, input_data):
                 uid = input_data['uid'][jid][0]
                 break
         if input_data['color'][uid]: color = np.array((ImageColor.getcolor('#81D2C7', "RGB")))/255.0
+        if uidBased: color = viridis(uid/obj.numUmbrellas())[:3]
         rod_colors.append(np.array([color]*obj.segment(seg_id).rod.numVertices()).astype(np.float64))
     sf = vis.fields.ScalarField(obj, rod_colors)
     sf.colors = new_colors.__get__(sf, vis.fields.ScalarField) 
