@@ -78,7 +78,10 @@ void bindDesignParameterProblem(py::module &m, const std::string &typestr) {
 PYBIND11_MODULE(umbrella_mesh, m) {
     m.doc() = "Umbrella Mesh Codebase";
 
+    py::module::import("MeshFEM");
+    py::module::import("sparse_matrices");
     py::module::import("ElasticRods");
+
     py::module detail_module = m.def_submodule("detail");
 
     using TSFSD = TargetSurfaceFitter::SurfaceData;
@@ -306,6 +309,7 @@ PYBIND11_MODULE(umbrella_mesh, m) {
         .def("designParameterDoFOffsetForJoint", &UmbrellaMesh::designParameterDoFOffsetForJoint, py::arg("index"))
         .def("setMaterial",   [](UmbrellaMesh &um, RodMaterial &mat) { um.setMaterial(mat); }, py::arg("material"))
         .def("setMaterial",   [](UmbrellaMesh &um, RodMaterial &am, RodMaterial &pm) { um.setMaterial(am, pm); }, py::arg("armMaterial"), py::arg("plateMaterial"))
+        .def("setMaterial",   [](UmbrellaMesh &um, std::vector<RodMaterial> &am, RodMaterial &pm) { um.setMaterial(am, pm); }, py::arg("armMaterial"), py::arg("plateMaterial"))
         .def_property("averageJointAngle", [](const UmbrellaMesh &um)                   { return um.getAverageJointAngle(); },
                                            [](      UmbrellaMesh &um, const Real alpha) { um.setAverageJointAngle(alpha);   })
         .def("jointAngleDoFIndices",      &UmbrellaMesh::jointAngleDoFIndices)
@@ -346,7 +350,9 @@ PYBIND11_MODULE(umbrella_mesh, m) {
         .def("scaleInputPosWeights",      &UmbrellaMesh::scaleInputPosWeights, py::arg("inputPosWeight"), py::arg("bdryMultiplier") = 1, py::arg("featureMultiplier") = 1, py::arg("additional_feature_pts") = std::vector<size_t>())
         .def("XJointPositions",           &UmbrellaMesh::XJointPositions)
         .def("XJointTgtPositions",        &UmbrellaMesh::XJointTgtPositions)
-        .def("IsQueryPtBoundary",        &UmbrellaMesh::IsQueryPtBoundary)
+        .def("topJointPositions",         &UmbrellaMesh::topJointPositions)
+        .def("bottomJointPositions",      &UmbrellaMesh::bottomJointPositions)
+        .def("IsQueryPtBoundary",         &UmbrellaMesh::IsQueryPtBoundary)
 
         // Vibration Mode Analysis
         .def("massMatrix", py::overload_cast<bool, bool>(&UmbrellaMesh::massMatrix, py::const_), py::arg("updatedSource") = false, py::arg("useLumped") = false)
@@ -383,6 +389,7 @@ PYBIND11_MODULE(umbrella_mesh, m) {
         // Pickle
         
         addSerializationBindings<UmbrellaMesh, PyUM, UmbrellaMesh::StateV1>(umbrella_mesh);
+        addSerializationBindings<UmbrellaMesh, PyUM, UmbrellaMesh::StateV2>(umbrella_mesh);
         ;
     ////////////////////////////////////////////////////////////////////////////////
     // Equilibrium solver
@@ -504,8 +511,9 @@ PYBIND11_MODULE(umbrella_mesh, m) {
                       const std::vector<std::vector<size_t> > &,
                       const std::vector<double> &,
                       const Eigen::MatrixXd &,
-                      const Eigen::MatrixXi &>(),
-            py::arg("joints"), py::arg("segments"), py::arg("umbrellas"), py::arg("umbrella_connectivity"), py::arg("material_params"), py::arg("target_v"), py::arg("target_f"))
+                      const Eigen::MatrixXi &,
+                      const bool &>(),
+            py::arg("joints"), py::arg("segments"), py::arg("umbrellas"), py::arg("umbrella_connectivity"), py::arg("material_params"), py::arg("target_v"), py::arg("target_f"),  py::arg("circular_cross_section") = false)
         .def("validate",            &UmbrellaMeshIO::validate)
         .def_readwrite("joints",    &UmbrellaMeshIO::joints)
         .def_readwrite("segments",  &UmbrellaMeshIO::segments)
@@ -514,5 +522,6 @@ PYBIND11_MODULE(umbrella_mesh, m) {
         .def_readwrite("material_params", &UmbrellaMeshIO::material_params)
         .def_readwrite("target_v", &UmbrellaMeshIO::target_v)
         .def_readwrite("target_f", &UmbrellaMeshIO::target_f)
+        .def_readwrite("circular_cross_section", &UmbrellaMeshIO::circular_cross_section)
         ;
 }

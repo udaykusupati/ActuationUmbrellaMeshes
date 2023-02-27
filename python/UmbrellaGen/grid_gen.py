@@ -5,7 +5,7 @@ import utils
 import numpy as np
 import math
 
-def genUmbrellaWithHeights(degree = 3, rows = 5, cols = 5, height_scales = None, minHeight = 64, useOverHang = True, armPlateEdgeAxisOffset = 10, armJointAxisOffset = 10, minOverHang = 5.0, plate_thickness = 3.0, edge_length = 30):
+def genUmbrellaWithHeights(degree = 3, rows = 5, cols = 5, height_scales = None, minHeight = 64, useOverHang = False, armPlateEdgeAxisOffset = 10, armJointAxisOffset = 10, minOverHang = 5.0, plate_thickness = 3.0, edge_length = 30, base_mesh = None):
     edgeLength = edge_length
     t_mesh = None
     uv_mesh = None
@@ -15,7 +15,23 @@ def genUmbrellaWithHeights(degree = 3, rows = 5, cols = 5, height_scales = None,
         fabHeight = minHeight + max_overhang
     jsonPath = '../UmbrellaGen/grid_dump.json.gz'
 
-    if degree == 3:
+    if base_mesh is not None:
+        # base_mesh has to be equilateral
+        v_base, f_base = base_mesh
+        v_out, f_out = v_base.copy(), f_base.copy()
+        V, F = np.array(v_out), np.array(f_out)
+        c_out = V[F].mean(axis=1)
+
+        assert np.unique(np.round(np.linalg.norm(np.expand_dims(c_out, 1) - V[F], axis = -1), decimals = 7)).size == 1, "Base mesh has to be equilateral"
+        c_out = c_out.tolist()
+        x_out = [[] for _ in F]
+        for fid1, f1 in enumerate(F):
+            for fid2, f2 in enumerate(F):
+                if len(np.intersect1d(f1, f2)) == 2:
+                    if fid2 not in x_out[fid1]: x_out[fid1].append(fid2)
+                    if fid1 not in x_out[fid2]: x_out[fid2].append(fid1)
+        i_out = None
+    elif degree == 3:
         v_out, f_out, c_out, i_out, x_out = utils.generate_regular_tri_grid(rows + 1, cols + 1, l = edgeLength)
     elif degree == 4:
         v_out, f_out, c_out, i_out, x_out = utils.generate_regular_sqr_grid(rows + 1, cols + 1, l = edgeLength)
@@ -43,6 +59,7 @@ def genUmbrellaWithHeights(degree = 3, rows = 5, cols = 5, height_scales = None,
         
     else:
         assert 0 
+    v_ret, f_ret, x_ret, c_ret = v_out.copy(), f_out.copy(), x_out.copy(), c_out.copy()
     
     scaleLength = height_scales
     overhangs = None
@@ -61,8 +78,8 @@ def genUmbrellaWithHeights(degree = 3, rows = 5, cols = 5, height_scales = None,
     if not useOverHang:
         overhangs = None
         heights = None
-    
     umbrella_gen.genPattern(edgeLength, t_mesh, uv_mesh, i_out, v_out, f_out, c_out, x_out, scaleLength, jsonPath, marginLength = 0.0, armPlateEdgeAxisOffset = armPlateEdgeAxisOffset, armJointAxisOffset = armJointAxisOffset, asymmetryOffset = 0, width = 5, thickness = plate_thickness, targetSpacingFactor = 5, minHeight = minHeight, select_umbrella = False, handlePivots = False, min_coerce_dist = 1e-8, degree = degree, overhang=overhangs, heights = heights)
+    return v_ret, f_ret, x_ret, c_ret
     
 
 
