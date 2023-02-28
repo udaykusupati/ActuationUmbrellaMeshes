@@ -14,10 +14,18 @@ class EquilibriumSolveAnalysis:
         self.gradientNorms = {name: [] for name, uet in self.uets}
         self.angles = []
         self.plateHeights = []
+        self.maxStresses = []
 
     def record(self, prob):
         self.angles.append(self.um.getDoFs()[self.um.jointAngleDoFIndices()])
         self.plateHeights.append(self.um.plateHeights)
+        stresses = np.array(self.um.maxVonMisesStresses())
+        for sid in range(self.um.numSegments()):
+            seg = self.um.segment(sid)
+            if seg.segmentType() == umbrella_mesh.SegmentType.Plate:
+                stresses[sid] *= 0
+        self.maxStresses.append(stresses.max())
+        
         fv = prob.fixedVars() + [b.idx for b in prob.activeBoundConstraints(prob.getVars(), prob.gradient())]
         for name, uet in self.uets:
             self.energies[name].append(self.um.energy(uet))
@@ -68,10 +76,20 @@ class EquilibriumSolveAnalysis:
         plt.grid()
         plt.tight_layout()
 
+    def plotMaxStresses(self):
+        plt.xlabel('Iterate')
+        plt.plot(self.maxStresses)
+        plt.title('Max Von Mises Stress')
+        plt.xlabel('Iterate')
+        plt.ylabel('Stress')
+        plt.grid()
+        plt.tight_layout()
+
     def plot(self):
-        plt.figure(figsize=(16,6))
-        plt.subplot(1, 4, 1); self.plotEnergies()
-        plt.subplot(1, 4, 2); self.plotGradients()
-        plt.subplot(1, 4, 3); self.plotAngles()
-        plt.subplot(1, 4, 4); self.plotPlateHeights()
+        plt.figure(figsize=(25,6))
+        plt.subplot(1, 5, 1); self.plotEnergies()
+        plt.subplot(1, 5, 2); self.plotGradients()
+        plt.subplot(1, 5, 3); self.plotAngles()
+        plt.subplot(1, 5, 4); self.plotPlateHeights()
+        plt.subplot(1, 5, 5); self.plotMaxStresses()
         plt.tight_layout()

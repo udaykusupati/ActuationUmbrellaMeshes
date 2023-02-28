@@ -7,11 +7,11 @@ from equilibrium_solve_analysis import EquilibriumSolveAnalysis
 from pipeline_helper import UmbrellaOptimizationCallback, allEnergies, allGradientNorms, allDesignObjectives, allDesignGradientNorms, set_joint_vector_field, show_center_joint_normal, show_joint_normal
 
     
-def parse_input(input_path, handleBoundary = False, resolution = 10, handlePivots = True, isHex = False, material_params = None):
+def parse_input(input_path, handleBoundary = False, resolution = 10, handlePivots = True, isHex = False, material_params = None, circular_cs = False, use_target_surface = True):
     if material_params is not None:
-        input_data, io = read_data(filepath = input_path, handleBoundary = handleBoundary, handlePivots = handlePivots, isHex = isHex, material_params=material_params)
+        input_data, io = read_data(filepath = input_path, handleBoundary = handleBoundary, handlePivots = handlePivots, isHex = isHex, material_params=material_params, circularCS = circular_cs, useTargetSurface = use_target_surface)
     else:
-        input_data, io = read_data(filepath = input_path, handleBoundary = handleBoundary, handlePivots = handlePivots, isHex = isHex)
+        input_data, io = read_data(filepath = input_path, handleBoundary = handleBoundary, handlePivots = handlePivots, isHex = isHex, circularCS = circular_cs, useTargetSurface = use_target_surface)
     import mesh
     target_mesh = None
     if len(input_data['target_v']) != 0:
@@ -30,7 +30,6 @@ def parse_input(input_path, handleBoundary = False, resolution = 10, handlePivot
     curr_um = umbrella_mesh.UmbrellaMesh(io, resolution)
     plate_thickness = io.material_params[-2]
     target_height_multiplier = input_data['target_spacing_factor']
-
     return io, input_data, target_mesh, curr_um, plate_thickness, target_height_multiplier
 
 def configure_umbrella_pre_deployment(curr_um, thickness, target_height_multiplier):
@@ -65,6 +64,10 @@ def staged_deployment(curr_um, weights, eqm_callback, OPTS, fixedVars, elasticEn
         curr_um.uniformDeploymentEnergyWeight = weight
         with so(): 
             results = umbrella_mesh.compute_equilibrium(curr_um, callback = eqm_callback, options = OPTS, fixedVars = fixedVars, elasticEnergyIncreaseFactorLimit=elasticEnergyIncreaseFactorLimit)
+    
+    curr_um.angleBoundEnforcement = umbrella_mesh.AngleBoundEnforcement.Hard
+    with so(): 
+        results = umbrella_mesh.compute_equilibrium(curr_um, callback = eqm_callback, options = OPTS, fixedVars = fixedVars, elasticEnergyIncreaseFactorLimit=elasticEnergyIncreaseFactorLimit)
     return results
 
 def configure_umbrella_optimization(curr_um, bdryMultiplier = 1.0):
@@ -98,7 +101,7 @@ def configure_design_optimization_umbrella(uo):
     # this seems to make the design optimization much more robust.
     uo.setHoldClosestPointsFixed(True, False)
     
-def deploy_umbrella_pin_rigid_motion(curr_um, plate_thickness, target_height_multiplier, view, colors, releaseActuation = False):
+def deploy_umbrella_pin_rigid_motion(curr_um, plate_thickness, target_height_multiplier, view = None, colors = None, releaseActuation = False, analysis = False, dep_weights = np.logspace(-3, 0, 4)):
     use_pin = True
     driver = curr_um.centralJoint()
     driverj = curr_um.joint(driver)
@@ -114,19 +117,31 @@ def deploy_umbrella_pin_rigid_motion(curr_um, plate_thickness, target_height_mul
     
     eqays = EquilibriumSolveAnalysis(curr_um)
     def eqm_callback(prob, i):
-        eqays.record(prob)
-        if (i % 2 == 0):
-            view.update(scalarField = colors)
-            view.show()
+        if analysis: eqays.record(prob)
+        if (i % 1 == 0):
+            if view is not None:
+                view.update(scalarField = colors)
+                view.show()
 
 
     configure_umbrella_pre_deployment(curr_um, plate_thickness, target_height_multiplier)
-    # curr_um.attractionWeight = 0
+    if curr_um.getTargetSurface() is None:
+        curr_um.attractionWeight = 0
     
     break_input_angle_symmetry(curr_um)
     if releaseActuation:
         results = staged_deployment(curr_um, [0], eqm_callback, OPTS, fixedVars) ## Use more/slower steps if the deployment is hard/tangled
     else:
+        results = staged_deployment(curr_um, dep_weights, eqm_callback, OPTS, fixedVars) ## Use more/slower steps if the deployment is hard/tangled
         # results = staged_deployment(curr_um, np.logspace(-5, 0, 6), eqm_callback, OPTS, fixedVars) ## Use more/slower steps if the deployment is hard/tangled
-        results = staged_deployment(curr_um, np.logspace(-3, 0, 4), eqm_callback, OPTS, fixedVars) ## Use more/slower steps if the deployment is hard/tangled
-    return results.success
+    return results.success, eqays
+
+def get_material_params(mat):
+    E, nu = None, None
+    if mat == "PP":
+        E, nu = 1400, 0.35
+    elif mat == "POM-C":
+        E, nu = 3000, 0.44
+    else:
+        assert 0, "Unknown material"
+    return E, nu

@@ -7,7 +7,7 @@ import umbrella_mesh
 import matplotlib.pyplot as plt
 
 
-def read_data(filepath, material_params = [1400, 0.35, None, None, 1400*10, 0.35, None, None], handleBoundary = False, handlePivots = True, isHex = False):
+def read_data(filepath, material_params = [1400, 0.35, None, None, 1400*10, 0.35, None, None], handleBoundary = False, handlePivots = True, isHex = False, circularCS = False, useTargetSurface = True):
     input_data = json.load(gzip.open(filepath))
     
     # Global config Data
@@ -181,7 +181,10 @@ def read_data(filepath, material_params = [1400, 0.35, None, None, 1400*10, 0.35
                 segment_endpoint_data[s].append((ji, AB == 'A', o))
     segments = [umbrella_mesh.UmbrellaMeshIO.Segment(t, [umbrella_mesh.UmbrellaMeshIO.JointConnection(*data) for data in endpoints], n) for t, endpoints, n in zip(input_data['segment_type'], segment_endpoint_data, input_data['segment_normals'])]
     # io = umbrella_mesh.UmbrellaMeshIO(joints, segments, umbrellas, input_data['umbrella_connectivity'], [E1, nu1, t1, w1, E2, nu2, t2, w2], input_data['target_v'], input_data['target_f'])
-    io = umbrella_mesh.UmbrellaMeshIO(joints, segments, umbrellas, input_data['umbrella_connectivity'], material_params, [], [])
+    if useTargetSurface:
+        io = umbrella_mesh.UmbrellaMeshIO(joints, segments, umbrellas, input_data['umbrella_connectivity'], material_params,   input_data['target_v'], input_data['target_f'], circular_cross_section = circularCS)
+    else:
+        io = umbrella_mesh.UmbrellaMeshIO(joints, segments, umbrellas, input_data['umbrella_connectivity'], material_params, [], [], circular_cross_section = circularCS)
     io.validate()
 
     return input_data, io

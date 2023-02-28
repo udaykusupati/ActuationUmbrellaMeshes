@@ -37,7 +37,7 @@ def genUmbrellaWithHeights(degree = 3, rows = 5, cols = 5, height_scales = None,
         v_out, f_out, c_out, i_out, x_out = utils.generate_regular_sqr_grid(rows + 1, cols + 1, l = edgeLength)
     elif degree == 6:
         v_out, f_out, c_out, i_out, x_out = utils.generate_regular_tri_grid(rows, cols, l = edgeLength * utils.sqrt(3)) # Scale up the dual mesh so that the hex has same side length as other cells
-    elif degree == 99: ## SPECIAL HARD CODE FOR OUR TOPOLOGY
+    elif degree == 99: ## SPECIAL HARD CODE FOR ONE TOPOLOGY
         degree = 3
         v_out, f_out, c_out, i_out, x_out = utils.generate_regular_tri_grid(rows + 1, cols + 1, l = edgeLength)
         invalid_tris = [0,1,2, 8,9,10,11,19,20,30,40,41,49]
@@ -79,7 +79,7 @@ def genUmbrellaWithHeights(degree = 3, rows = 5, cols = 5, height_scales = None,
         overhangs = None
         heights = None
     umbrella_gen.genPattern(edgeLength, t_mesh, uv_mesh, i_out, v_out, f_out, c_out, x_out, scaleLength, jsonPath, marginLength = 0.0, armPlateEdgeAxisOffset = armPlateEdgeAxisOffset, armJointAxisOffset = armJointAxisOffset, asymmetryOffset = 0, width = 5, thickness = plate_thickness, targetSpacingFactor = 5, minHeight = minHeight, select_umbrella = False, handlePivots = False, min_coerce_dist = 1e-8, degree = degree, overhang=overhangs, heights = heights)
-    return v_ret, f_ret, x_ret, c_ret
+    # return v_ret, f_ret, x_ret, c_ret
     
 
 
