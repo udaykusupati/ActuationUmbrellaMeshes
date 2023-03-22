@@ -6,11 +6,12 @@ dependencies:
   - pip:
     - flake8
     - wheel
-    - jupyterlab
+    - jupyterlab==3.3.4
     - ipykernel==5.5.5
+    - jupyterlab-widgets==1.1.1
+    - ipywidgets==7.7.2
   - igl
   - matplotlib
   - pytest
   - pytest-html
   - pytest-timeout
-  - matplotlib

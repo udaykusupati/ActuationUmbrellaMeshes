@@ -59,6 +59,7 @@ def insert_randomness(curr_um, zPerturbationEpsilon = 1e-4):
     dof[zCoordDoFs] += 2 * zPerturbationEpsilon * (np.random.random_sample(len(zCoordDoFs)) - 0.5)
     curr_um.setDoFs(dof)
 
+'''
 def staged_deployment(curr_um, weights, eqm_callback, OPTS, fixedVars, elasticEnergyIncreaseFactorLimit = 2.5):
     for weight in weights:
         curr_um.uniformDeploymentEnergyWeight = weight
@@ -69,6 +70,7 @@ def staged_deployment(curr_um, weights, eqm_callback, OPTS, fixedVars, elasticEn
     with so(): 
         results = umbrella_mesh.compute_equilibrium(curr_um, callback = eqm_callback, options = OPTS, fixedVars = fixedVars, elasticEnergyIncreaseFactorLimit=elasticEnergyIncreaseFactorLimit)
     return results
+'''
 
 def configure_umbrella_optimization(curr_um, bdryMultiplier = 1.0):
     # ### Initialize Design Optimization
@@ -100,7 +102,8 @@ def configure_design_optimization_umbrella(uo):
     # Hold the closest points fixed in the target-attraction term of the equilibrium solve:
     # this seems to make the design optimization much more robust.
     uo.setHoldClosestPointsFixed(True, False)
-    
+
+'''    
 def deploy_umbrella_pin_rigid_motion(curr_um, plate_thickness, target_height_multiplier, view = None, colors = None, releaseActuation = False, analysis = False, dep_weights = np.logspace(-3, 0, 4)):
     use_pin = True
     driver = curr_um.centralJoint()
@@ -135,7 +138,8 @@ def deploy_umbrella_pin_rigid_motion(curr_um, plate_thickness, target_height_mul
         results = staged_deployment(curr_um, dep_weights, eqm_callback, OPTS, fixedVars) ## Use more/slower steps if the deployment is hard/tangled
         # results = staged_deployment(curr_um, np.logspace(-5, 0, 6), eqm_callback, OPTS, fixedVars) ## Use more/slower steps if the deployment is hard/tangled
     return results.success, eqays
-
+'''
+    
 def get_material_params(mat):
     E, nu = None, None
     if mat == "PP":
@@ -145,3 +149,57 @@ def get_material_params(mat):
     else:
         assert 0, "Unknown material"
     return E, nu
+
+
+
+# ==============================
+
+def staged_deployment(curr_um, weights, eqm_callback, OPTS, fixedVars, elasticEnergyIncreaseFactorLimit = 2.5):
+    for weight in weights:
+        if isinstance(weight, np.ndarray):
+            curr_um.deploymentEnergyWeight = weight
+        else:
+            curr_um.uniformDeploymentEnergyWeight = weight
+
+        with so(): 
+            results = umbrella_mesh.compute_equilibrium(curr_um, callback = eqm_callback, options = OPTS, fixedVars = fixedVars, elasticEnergyIncreaseFactorLimit=elasticEnergyIncreaseFactorLimit)
+    
+    curr_um.angleBoundEnforcement = umbrella_mesh.AngleBoundEnforcement.Hard
+    with so(): 
+        results = umbrella_mesh.compute_equilibrium(curr_um, callback = eqm_callback, options = OPTS, fixedVars = fixedVars, elasticEnergyIncreaseFactorLimit=elasticEnergyIncreaseFactorLimit)
+    return results
+
+
+def deploy_umbrella_pin_rigid_motion(curr_um, plate_thickness, target_height_multiplier, view = None, colors = None, releaseActuation = False, analysis = False, dep_weights = np.logspace(-3, 0, 4)):
+    use_pin = True
+    driver = curr_um.centralJoint()
+    jdo = curr_um.dofOffsetForJoint(driver)
+    fixedVars = (list(range(jdo, jdo + 6)) if use_pin else []) + curr_um.rigidJointAngleDoFIndices()
+    
+    OPTS = py_newton_optimizer.NewtonOptimizerOptions()
+    OPTS.gradTol = 1e-8
+    OPTS.verbose = 1
+    OPTS.beta = 1e-6
+    OPTS.niter = 300
+    OPTS.verboseNonPosDef = False
+    
+    eqays = EquilibriumSolveAnalysis(curr_um)
+    def eqm_callback(prob, i):
+        if analysis:
+            eqays.record(prob)
+        if view is not None:
+            view.update(scalarField = colors)
+            view.show()
+
+
+    configure_umbrella_pre_deployment(curr_um, plate_thickness, target_height_multiplier)
+    if curr_um.getTargetSurface() is None:
+        curr_um.attractionWeight = 0
+    
+    break_input_angle_symmetry(curr_um)
+    if releaseActuation:
+        results = staged_deployment(curr_um, [0], eqm_callback, OPTS, fixedVars) ## Use more/slower steps if the deployment is hard/tangled
+    else:
+        results = staged_deployment(curr_um, dep_weights, eqm_callback, OPTS, fixedVars) ## Use more/slower steps if the deployment is hard/tangled
+        # results = staged_deployment(curr_um, np.logspace(-5, 0, 6), eqm_callback, OPTS, fixedVars) ## Use more/slower steps if the deployment is hard/tangled
+    return results.success, eqays

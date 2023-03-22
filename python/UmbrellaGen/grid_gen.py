@@ -5,11 +5,22 @@ import utils
 import numpy as np
 import math
 
-def genUmbrellaWithHeights(degree = 3, rows = 5, cols = 5, height_scales = None, minHeight = 64, useOverHang = False, armPlateEdgeAxisOffset = 10, armJointAxisOffset = 10, minOverHang = 5.0, plate_thickness = 3.0, edge_length = 30, base_mesh = None):
+def genUmbrellaWithHeights(degree = 3,
+                           rows = 5,
+                           cols = 5,
+                           height_scales = None,
+                           minHeight = 64,
+                           useOverHang = False,
+                           armPlateEdgeAxisOffset = 10,
+                           armJointAxisOffset = 10,
+                           minOverHang = 5.0,
+                           plate_thickness = 3.0,
+                           edge_length = 30,
+                           base_mesh = None):
     edgeLength = edge_length
     t_mesh = None
     uv_mesh = None
-    # max_overhang = edgeLength
+    # max_overhang = edgeLength # overhang = surplomb (porte-à-faux)
     if height_scales is not None:
         max_overhang = np.max(np.array(height_scales))*minHeight - minHeight
         fabHeight = minHeight + max_overhang
@@ -78,7 +89,30 @@ def genUmbrellaWithHeights(degree = 3, rows = 5, cols = 5, height_scales = None,
     if not useOverHang:
         overhangs = None
         heights = None
-    umbrella_gen.genPattern(edgeLength, t_mesh, uv_mesh, i_out, v_out, f_out, c_out, x_out, scaleLength, jsonPath, marginLength = 0.0, armPlateEdgeAxisOffset = armPlateEdgeAxisOffset, armJointAxisOffset = armJointAxisOffset, asymmetryOffset = 0, width = 5, thickness = plate_thickness, targetSpacingFactor = 5, minHeight = minHeight, select_umbrella = False, handlePivots = False, min_coerce_dist = 1e-8, degree = degree, overhang=overhangs, heights = heights)
+    umbrella_gen.genPattern(edgeLength,
+                            t_mesh,
+                            uv_mesh,
+                            i_out,
+                            v_out,
+                            f_out,
+                            c_out,
+                            x_out,
+                            scaleLength,
+                            jsonPath,
+                            marginLength = 0.0,
+                            armPlateEdgeAxisOffset = armPlateEdgeAxisOffset,
+                            armJointAxisOffset = armJointAxisOffset,
+                            asymmetryOffset = 0,
+                            width = 5,
+                            thickness = plate_thickness,
+                            targetSpacingFactor = 5,
+                            minHeight = minHeight,
+                            select_umbrella = False,
+                            handlePivots = False,
+                            min_coerce_dist = 1e-8,
+                            degree = degree,
+                            overhang=overhangs,
+                            heights = heights)
     # return v_ret, f_ret, x_ret, c_ret
     
 

@@ -205,40 +205,33 @@ def generate_regular_tri_grid(rows, cols, l=1, ox=0, oy=0):
     
     idE = 0 # Counter for elements
     for row in range(rows):
+        offset = 0
+        if row%2 != 0:
+            offset = l/2
         for col in range(cols):
-            if row%2==0:
-                v_grid.append([l*col+ox,h*row+oy, 0])
-            else:
-                v_grid.append([l*col+l/2+ox,h*row+oy, 0])
+            v_grid.append([l*col+ox+offset, h*row+oy, 0])
                 
     for row in range(rows-1):
         iList = []
+        if row%2==0:
+            m, n = 1, 0
+        else:
+            m, n = 0, 1
         for col in range(cols-1):
-            
-            if row%2==0:
-                m = 1
-                n = 0
-                iList.append(0)
-                iList.append(1)
-                
-            else:
-                m = 0
-                n = 1
-                iList.append(1)
-                iList.append(0)
+            iList.append(n)
+            iList.append(m)
         
             n0 = col + row*cols
-            n1 = col + row*cols + 1
-            n2 = col + (row+1)*cols + n
-            
+            n1 = n0 + 1
+            n2 = n0 + cols + n
             # iso triangle #1
             fL1 = [n0,n1,n2]
         
-            c0 = (v_grid[n0][0]+v_grid[n1][0])/2
-            c1 = v_grid[n0][1] + sqrt(3)/6*l
+            cx = (v_grid[n0][0]+v_grid[n1][0])/2
+            cy = v_grid[n0][1] + sqrt(3)/6*l
             
             # center of tri #1
-            cL1 = [c0,c1,0]
+            cL1 = [cx,cy,0]
             
             n0 = col + row*cols + m
             n1 = col + (row+1)*cols + 1
@@ -268,7 +261,7 @@ def generate_regular_tri_grid(rows, cols, l=1, ox=0, oy=0):
                     else:
                         x_grid.append([idE-1, idE+1])
                 else:
-                    if col ==0:
+                    if col == 0:
                         x_grid.append([idE+1, idE-(cols-1)*2])
                     else:
                         x_grid.append([idE-1, idE-(cols-1)*2, idE+1])
@@ -331,4 +324,4 @@ def generate_regular_tri_grid(rows, cols, l=1, ox=0, oy=0):
         
     i_grid = [item for sublist in i_grid for item in sublist]
     
-    return v_grid,f_grid,c_grid,i_grid, x_grid
+    return v_grid,f_grid,c_grid, i_grid, x_grid

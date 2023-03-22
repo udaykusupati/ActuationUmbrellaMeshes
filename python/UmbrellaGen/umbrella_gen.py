@@ -770,9 +770,13 @@ def getEdgeLength(plateLength, marginLength, thickness, handlePivots = True, deg
     return edgeLength
 
 
-def getPlateLength(edgeLength, marginLength, thickness, handlePivots = True, degree = 3):
+def getPlateLength(edgeLength,
+                   marginLength,
+                   thickness,
+                   handlePivots = True,
+                   degree = 3):
     if degree == 3:
-        plateLength = edgeLength - 2*sqrt(3.)*marginLength
+        plateLength = edgeLength - 2*sqrt(3.)*marginLength # [RQ]
         if handlePivots: plateLength -= 2*sqrt(3)*thickness/2
     elif degree == 4:
         plateLength = edgeLength - 2*marginLength
@@ -853,7 +857,30 @@ def getScaleFactorPerVertex(scale_factors, faces, num_vertices):
 
 
 
-def genPattern(edgeLength, t_mesh, uv_mesh, i_out, v_out, f_out, c_out, x_out, scaleLength, jsonPath, marginLength = 0.0, armPlateEdgeAxisOffset = 0.0, armJointAxisOffset = 0.0, asymmetryOffset = 0, width = 5, thickness = 3, targetSpacingFactor = 1, minHeight = 80, select_umbrella = False, handlePivots = True, min_coerce_dist = 1e-8, degree = 3, overhang = None, heights = None):
+def genPattern(edgeLength,
+               t_mesh,
+               uv_mesh,
+               i_out,
+               v_out,
+               f_out,
+               c_out,
+               x_out,
+               scaleLength,
+               jsonPath,
+               marginLength = 0.0,
+               armPlateEdgeAxisOffset = 0.0,
+               armJointAxisOffset = 0.0,
+               asymmetryOffset = 0,
+               width = 5,
+               thickness = 3,
+               targetSpacingFactor = 1,
+               minHeight = 80,
+               select_umbrella = False,
+               handlePivots = True,
+               min_coerce_dist = 1e-8,
+               degree = 3,
+               overhang = None,
+               heights = None):
 
     mesh_degree = degree
     # pivot offset handling would move the TA joints of neighboring plates inward so that a spacing of "thickness" is made between them. Similarly for the z direction
