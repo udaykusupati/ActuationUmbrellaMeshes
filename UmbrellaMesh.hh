@@ -152,7 +152,8 @@ struct UmbrellaMesh_T {
         m_X_joint_indices                              = std::get<13>(state);
         m_numURH                                       = std::get<14>(state);
         m_E0                             = stripAutoDiff(std::get<15>(state));
-        m_target_surface_fitter                        = std::get<16>(state)->clone(); // Copy! Don't share closest-point state when copying another umbrella mesh.
+        if (std::get<16>(state) != nullptr)
+            m_target_surface_fitter                        = std::get<16>(state)->clone(); // Copy! Don't share closest-point state when copying another umbrella mesh.
         // m_surface_path                              = std::get<17>(state);
         m_l0                                           = std::get<18>(state);
         m_attraction_input_joint_weight                = std::get<19>(state);
