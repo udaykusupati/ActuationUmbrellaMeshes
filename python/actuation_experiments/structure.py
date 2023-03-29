@@ -1,26 +1,24 @@
 import sys
-from helpers import set_actives_dep_weights, set_target_height, percent_to_height
+from helpers import set_actives_dep_weights, set_target_height, percent_to_height, get_center_position
 sys.path.append('..')
 from configuration import parse_input, deploy_umbrella_pin_rigid_motion
 from visualization_helper import get_color_field
 from pipeline_helper import allEnergies
 sys.path.append('../UmbrellaGen')
 from grid_gen import genUmbrellaWithHeights
-
 class UmbrellaGrid:
     def __init__(self, degree=3, rows=2, cols=2, height_fct=None, min_height=64):
         assert degree==3 or degree==4 or degree==6, f'degree is {degree}, but is should either be 3, 4 or 6'
         if degree==4 and (rows<2 or cols<2):
             raise ValueError('rows and/or cols sould be greater than two.')
             
-        self.degree        = degree
-        self.rows          = rows
-        self.cols          = cols
-        self.numUmbrellas  = self._get_num_cells()
-        self.center_pos    = self._get_center_position()
-        self.num_links     = self._get_num_links()
-        self.min_height    = min_height
-        self.height_scales = height_fct(self.numUmbrellas) if height_fct is not None else [1]*self.numUmbrellas
+        self.degree          = degree
+        self.rows            = rows
+        self.cols            = cols
+        self.numUmbrellas    = self._get_num_cells()
+        self.num_links       = self._get_num_links()
+        self.min_height      = min_height
+        self.height_scales   = height_fct(self.numUmbrellas) if height_fct is not None else [1]*self.numUmbrellas
     
     def generate_mesh(self, json_filename, verbose=True):
         genUmbrellaWithHeights(self.degree,
@@ -39,6 +37,7 @@ class UmbrellaGrid:
         
         self.init_heights    = self.curr_um.umbrellaHeights
         self.plate_thickness = self.input_data['thickness']
+        self.init_center_xyz = get_center_position(self.curr_um)
         
         if verbose:
             print(f"PLATE CHARACTERISTIQUES:\n\
@@ -122,11 +121,5 @@ class UmbrellaGrid:
         elif self.degree==4:
             nb_links += self.cols*(  self.rows-1)
         return nb_links
-    
-     def _get_center_position(self):
-        center_position = np.zeros([self.numUmbrellas, 3])
-        for i in range(self.numUmbrellas):
-            top_idx = self.curr_um.getUmbrellaCenterJi(i, 0)
-            center_position[i] = self.curr_um.joint(top_idx).position
-        return center_position
+
         

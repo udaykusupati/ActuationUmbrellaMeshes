@@ -11,7 +11,7 @@ from visualization_helper import get_color_field
 ## PLOT 2D - close Umbrella
 ## ===============
 
-def _get_center_position(curr_um):
+def get_center_position(curr_um):
     nb_cell = curr_um.numUmbrellas()
     center_position = np.zeros([nb_cell, 3])
     for i in range(nb_cell):
@@ -20,7 +20,7 @@ def _get_center_position(curr_um):
     return center_position
 
 def plot2D(input_data, curr_um, show_height=False, active_cells=[], target_percents=[]):
-    center_position = _get_center_position(curr_um)
+    center_position = get_center_position(curr_um)
     vertices = input_data['base_mesh_v']
     edge     = np.roll(np.insert(input_data['base_mesh_f'], 0, input_data['base_mesh_f'][:,0], axis=1), -1, axis=1)
 
@@ -57,7 +57,7 @@ def plot2D(input_data, curr_um, show_height=False, active_cells=[], target_perce
     plt.show()
     
 def projection2D(input_data, curr_um, active_cells=[], target_percents=[]):
-    center_position = _get_center_position(curr_um)
+    center_position = get_center_position(curr_um)
     vertices = input_data['umbrella_connectivity']
     center_xy = np.array(list(zip(center_position[:,0], center_position[:,1])))
     segments = center_xy[vertices]
@@ -68,8 +68,8 @@ def projection2D(input_data, curr_um, active_cells=[], target_percents=[]):
     # color for actve_cell
     if active_cells != []:
         for i, p in zip(active_cells, target_percents):
-            g = p/100
-            r = 1-g
+            r = p/100
+            g = 1-r
             b = 0
             [x,y,_] = center_position[i]
             plt.scatter(x,y, color=(r,g,b))
@@ -102,7 +102,7 @@ def set_target_height(numUmbrellas, active_cell, target_heights):
     return target_height_multiplier
 
 def percent_to_height(init_height, thickness, indexes, percents):
-    return [((percent/100)*(init_height[idx]-thickness)+thickness)/thickness
+    return [((1-percent/100)*(init_height[idx]-thickness)+thickness)/thickness
             for percent,idx in zip(percents,indexes)]
 
 def plot_stress3D(curr_um, stress_type, verbose=True):
@@ -139,35 +139,72 @@ def _set_plate_stress_null(curr_um, stresses):
     return stresses.tolist()
 
 
-def _get_stress_matrix(grid, stress_type):
-    matrix = np.zeros((grid.numUmbrellas, grid.numUmbrellas, 2, 11)) # 2 x 11 : segment x rod? | numUmbrellas might be degree -> to optimize
+def _get_stress_matrix(grid, stress_type='maxBending'):
+    '''return the adjacency max stress matrix'''
+    matrix = np.zeros((grid.numUmbrellas, grid.numUmbrellas))
     stress_all = _get_stresses(grid.curr_um, stress_type)
-    for i in range(grid.curr_um.numSegments()):
-        seg = grid.curr_um.segment(i)
+    for seg_id in range(grid.curr_um.numSegments()):
+        seg = grid.curr_um.segment(seg_id)
         if seg.segmentType()==umbrella_mesh.SegmentType.Arm:
             sjoint = seg.startJoint
             ejoint = seg.endJoint
-            stresses = stress_all[i]
+            stresses = stress_all[seg_id]
             if grid.curr_um.joint(sjoint).jointPosType()==umbrella_mesh.JointPosType.Arm:
-                s,e = grid.curr_um.joint(sjoint).umbrellaID()
-                if i%2==0: matrix[e,s,1] = stresses
-                else:      matrix[s,e,1] = stresses
+                i,j = grid.curr_um.joint(ejoint).umbrellaID()
             if grid.curr_um.joint(ejoint).jointPosType()==umbrella_mesh.JointPosType.Arm:
-                s,e = grid.curr_um.joint(ejoint).umbrellaID()
-                if i%2==0: matrix[e,s,0] = stresses
-                else:      matrix[s,e,0] = stresses
+                i,j = grid.curr_um.joint(sjoint).umbrellaID()
+            matrix[i,j] = matrix[j,i] = max(matrix[i,j], max(stresses))
     return matrix
 
-def plot_stress2D(grid, stress_type):
-    clean_top = []
-    clean_bot = []
+def plot_stress2D(grid, active_cells=[], target_percents=[], stress_type='maxBending', zero_as_extrem = False, show_percent=False):
     matrix = _get_stress_matrix(grid, stress_type)
+    max_, min_ = matrix.max(), matrix.min()
+    if not zero_as_extrem:
+        matrix_nz = matrix[np.nonzero(matrix)]
+        max_, min_ = matrix_nz.max(),matrix_nz.min()
+    color = []
     for i,j in grid.input_data['umbrella_connectivity']:
-        clean_top.append(matrix[i,j].tolist())
-        clean_bot.append(matrix[j,i].tolist())
-    for i,arm in enumerate(clean_top):
-        x = []
-        for seg in arm:
-            x += seg[1:-1]
-        y = np.linspace(i,i+1, len(x))
-        plt.plot(y,x)
+        if max_ != min_:
+            r = (matrix[i,j]-min_)/(max_-min_)
+            g = 1-r
+            b = 0
+        else: r,g,b = 0,0,0
+        [x,y,_] = grid.init_center_xyz[[i,j]].transpose()
+        plt.plot(x, y, c=(r,g,b))
+    
+    # color for actve_cell
+    if active_cells != []:
+        for i, p in zip(active_cells, target_percents):
+            r = p/100
+            g = 1-r
+            b = 0
+            [x,y,_] = grid.init_center_xyz[i]
+            plt.scatter(x,y, color=(r,g,b))
+            if show_percent:
+                plt.annotate(f'{p: >5}',(x,y), ha='left', va='center', color='black')
+            
+    plt.axis('equal')
+    plt.show()
+    
+'''  
+def projection2D(input_data, curr_um, active_cells=[], target_percents=[]):
+    center_position = get_center_position(curr_um)
+    vertices = input_data['umbrella_connectivity']
+    center_xy = np.array(list(zip(center_position[:,0], center_position[:,1])))
+    segments = center_xy[vertices]
+    
+    for s in segments:
+        plt.plot(s[:,0], s[:,1], c='black')
+    
+    # color for actve_cell
+    if active_cells != []:
+        for i, p in zip(active_cells, target_percents):
+            g = p/100
+            r = 1-g
+            b = 0
+            [x,y,_] = center_position[i]
+            plt.scatter(x,y, color=(r,g,b))
+            
+    plt.axis('equal')
+    plt.show()
+ '''
