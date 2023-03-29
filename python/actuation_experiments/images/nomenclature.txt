@@ -1,0 +1,8 @@
+DD_RR_CC_close_open_img
+
+DD: Degree : 03 or 04
+RR : Rows number
+CC : Columns number
+close : closed cells : center,border,other,...
+open  : open cells : center,border,other,...
+img : image type: close_mesh, screenshot3D, projection2D, stress3D, stresses2D

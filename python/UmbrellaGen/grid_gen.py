@@ -16,7 +16,8 @@ def genUmbrellaWithHeights(degree = 3,
                            minOverHang = 5.0,
                            plate_thickness = 3.0,
                            edge_length = 30,
-                           base_mesh = None):
+                           base_mesh = None,
+                           json_filename = 'grid_dump'):
     edgeLength = edge_length
     t_mesh = None
     uv_mesh = None
@@ -24,7 +25,7 @@ def genUmbrellaWithHeights(degree = 3,
     if height_scales is not None:
         max_overhang = np.max(np.array(height_scales))*minHeight - minHeight
         fabHeight = minHeight + max_overhang
-    jsonPath = '../UmbrellaGen/grid_dump.json.gz'
+    jsonPath = f'../UmbrellaGen/{json_filename}.json.gz'
 
     if base_mesh is not None:
         # base_mesh has to be equilateral

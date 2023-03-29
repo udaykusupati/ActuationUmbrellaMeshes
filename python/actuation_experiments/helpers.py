@@ -1,74 +1,36 @@
-## ===============
-## UTILS
-## ===============
-def get_num_cells(rows, cols):
-    return rows*(cols*2)
+import numpy as np
+import matplotlib.pyplot as plt
 
-def get_border(rows, cols):
-    step = 2*cols
-    bot_left  = 0
-    bot_right = step-1
-    top_left  = step*(rows-1)
-    top_right = step*rows
-    return  list(range(bot_right)) + \
-            list(range(bot_right, top_right-1, step)) + \
-            list(range(step, top_left, step)) + \
-            list(range(top_left,top_right))
-
-def get_center(rows, cols):
-    if rows%2==0:
-        a = (rows)*(cols-1)
-        b = (rows+1)*cols
-        return [a-1, a, b-1, b]
-    else:
-        return [rows*cols-1, rows*cols]
-
-## ===============
-## HEIGHTS
-## ===============
-def height_cst(rows, cols):
-    return [1]*get_num_cells(rows, cols)
-
-def height_Ux(rows, cols):
-    numUmbrellas = get_num_cells(rows, cols)
-    heights = height_cst(rows, cols)
-    for uid in range(numUmbrellas):
-        heights[uid] += (0.01 * uid**2 + 0.01 * (numUmbrellas - 1 - uid)**2)
-    heights = [h/min(heights) for h in heights]
-    return heights
-
-def height_Ux_nbCell(numUmbrellas):
-    heights = [1]*numUmbrellas
-    for uid in range(numUmbrellas):
-        heights[uid] += (0.01 * uid**2 + 0.01 * (numUmbrellas - 1 - uid)**2)
-    heights = [h/min(heights) for h in heights]
-    return heights
-
+import sys
+sys.path.append('..')
+import umbrella_mesh
+import linkage_vis
+from visualization_helper import get_color_field
 
 ## ===============
 ## PLOT 2D - close Umbrella
 ## ===============
-import numpy as np
-import matplotlib.pyplot as plt
 
-def plot2D(input_data, curr_um, show_height=False, active_cells=[], target_percents=[]):
-    # get cells' center coordinates
+def _get_center_position(curr_um):
     nb_cell = curr_um.numUmbrellas()
     center_position = np.zeros([nb_cell, 3])
     for i in range(nb_cell):
         top_idx = curr_um.getUmbrellaCenterJi(i, 0)
         center_position[i] = curr_um.joint(top_idx).position
+    return center_position
 
-    # get cells' top plate edges coordinate
+def plot2D(input_data, curr_um, show_height=False, active_cells=[], target_percents=[]):
+    center_position = _get_center_position(curr_um)
     vertices = input_data['base_mesh_v']
-    edge = np.roll(np.insert(input_data['base_mesh_f'], 0, input_data['base_mesh_f'][:,0], axis=1), -1, axis=1)
+    edge     = np.roll(np.insert(input_data['base_mesh_f'], 0, input_data['base_mesh_f'][:,0], axis=1), -1, axis=1)
 
-    # == actual plotting ==
-    fig = plt.figure(figsize=(15, 15))
-    # plot cells' edges
+    ## == plotting == ##
+    fig_length = 15#max(5, len(center_position)**0.5)
+    fig = plt.figure(figsize=(fig_length, fig_length))
+    # cells' edges
     for e in vertices[edge]:
         plt.plot(e[:, 0], e[:, 1], color="lightblue")
-    # plot cell index at its center
+    # cell index at its center
     for i, [x,y,z] in enumerate(center_position):
         plt.annotate(f'{i}', (x,y), ha='center', color='black')
     if show_height:
@@ -93,12 +55,42 @@ def plot2D(input_data, curr_um, show_height=False, active_cells=[], target_perce
     # show plot
     plt.axis('equal')
     plt.show()
+    
+def projection2D(input_data, curr_um, active_cells=[], target_percents=[]):
+    center_position = _get_center_position(curr_um)
+    vertices = input_data['umbrella_connectivity']
+    center_xy = np.array(list(zip(center_position[:,0], center_position[:,1])))
+    segments = center_xy[vertices]
+    
+    for s in segments:
+        plt.plot(s[:,0], s[:,1], c='black')
+    
+    # color for actve_cell
+    if active_cells != []:
+        for i, p in zip(active_cells, target_percents):
+            g = p/100
+            r = 1-g
+            b = 0
+            [x,y,_] = center_position[i]
+            plt.scatter(x,y, color=(r,g,b))
+            
+    plt.axis('equal')
+    plt.show()
 
 
+## ==============
+## PLOT 3D
+## ===============
+def plot3D(curr_um, input_data, rod_colors=None, uidBased=False):
+    if rod_colors is None:
+        rod_colors = get_color_field(curr_um, input_data, uidBased) 
+    view = linkage_vis.LinkageViewer(curr_um, width=800, height=600)
+    view.update(scalarField = rod_colors)
+    return view
+    
 ## ===============
 ## Constraints
 ## ===============
-import numpy as np
 def set_actives_dep_weights(numUmbrellas, *active_cells, dep_factors = np.logspace(-4, 0, 5)):
     weights_per_cell = np.zeros(numUmbrellas)
     weights_per_cell[active_cells] = 1
@@ -109,18 +101,73 @@ def set_target_height(numUmbrellas, active_cell, target_heights):
     target_height_multiplier[active_cell] = target_heights
     return target_height_multiplier
 
-def percent_to_height(curr_um, thickness, indexes, percents):
-    return [((percent/100)*(curr_um.umbrellaHeights[idx]-thickness)+thickness)/thickness
+def percent_to_height(init_height, thickness, indexes, percents):
+    return [((percent/100)*(init_height[idx]-thickness)+thickness)/thickness
             for percent,idx in zip(percents,indexes)]
 
+def plot_stress3D(curr_um, stress_type, verbose=True):
+    view = linkage_vis.LinkageViewer(curr_um, width=800, height=600)
+    stresses = _set_plate_stress_null(curr_um, _get_stresses(curr_um, stress_type))
+    view.update(scalarField = stresses)
+    if verbose:
+        print(f'{stress_type} Stresses Extrem values:\n\
+    max : {np.array(stresses).max():.2e}\n\
+    min : {np.array(stresses).min():.2e}')
+    return view
 
-import sys
-sys.path.append('..')
-import umbrella_mesh
-def get_arm_stresses(curr_um, stresses):
+def _get_stresses(curr_um, stress_type):
+    if stress_type=='Von Mises':
+        stresses = curr_um.maxVonMisesStresses()
+    elif stress_type=='maxBending':
+        stresses = curr_um.maxBendingStresses()
+    elif stress_type=='minBending':
+        stresses = curr_um.minBendingStresses()
+    elif stress_type=='Twisting':
+        stresses = curr_um.twistingStresses()
+    elif stress_type=='Stretching':
+        stresses = curr_um.stretchingStresses()
+    else:
+        raise ValueError(f'the required stress type <{stress_type}> do not correspond to any available stress')
+    return stresses
+
+def _set_plate_stress_null(curr_um, stresses):
     stresses = np.array(stresses)
     for sid in range(curr_um.numSegments()):
         seg = curr_um.segment(sid)
         if seg.segmentType() == umbrella_mesh.SegmentType.Plate:
             stresses[sid] = 0
     return stresses.tolist()
+
+
+def _get_stress_matrix(grid, stress_type):
+    matrix = np.zeros((grid.numUmbrellas, grid.numUmbrellas, 2, 11)) # 2 x 11 : segment x rod? | numUmbrellas might be degree -> to optimize
+    stress_all = _get_stresses(grid.curr_um, stress_type)
+    for i in range(grid.curr_um.numSegments()):
+        seg = grid.curr_um.segment(i)
+        if seg.segmentType()==umbrella_mesh.SegmentType.Arm:
+            sjoint = seg.startJoint
+            ejoint = seg.endJoint
+            stresses = stress_all[i]
+            if grid.curr_um.joint(sjoint).jointPosType()==umbrella_mesh.JointPosType.Arm:
+                s,e = grid.curr_um.joint(sjoint).umbrellaID()
+                if i%2==0: matrix[e,s,1] = stresses
+                else:      matrix[s,e,1] = stresses
+            if grid.curr_um.joint(ejoint).jointPosType()==umbrella_mesh.JointPosType.Arm:
+                s,e = grid.curr_um.joint(ejoint).umbrellaID()
+                if i%2==0: matrix[e,s,0] = stresses
+                else:      matrix[s,e,0] = stresses
+    return matrix
+
+def plot_stress2D(grid, stress_type):
+    clean_top = []
+    clean_bot = []
+    matrix = _get_stress_matrix(grid, stress_type)
+    for i,j in grid.input_data['umbrella_connectivity']:
+        clean_top.append(matrix[i,j].tolist())
+        clean_bot.append(matrix[j,i].tolist())
+    for i,arm in enumerate(clean_top):
+        x = []
+        for seg in arm:
+            x += seg[1:-1]
+        y = np.linspace(i,i+1, len(x))
+        plt.plot(y,x)
