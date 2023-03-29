@@ -29,19 +29,16 @@ class UmbrellaGrid:
                                json_filename=json_filename)
         input_path = f'../UmbrellaGen/{json_filename}.json.gz'
         
-        # consant plate height: should check input_data['bbox_diag']
-        io, self.input_data, target_mesh, self.curr_um, plate_thickness_scaled, target_height_multiplier\
-            = parse_input(input_path,
-                          isHex = (self.degree==6),
-                          use_target_surface = False)
-        
+        _, self.input_data, _, self.curr_um, _, _ = parse_input(input_path,
+                                                                isHex = (self.degree==6),
+                                                                use_target_surface = False)
         self.init_heights    = self.curr_um.umbrellaHeights
         self.plate_thickness = self.input_data['thickness']
-        self.init_center_xyz = get_center_position(self.curr_um)
+        self.init_center_pos = get_center_position(self.curr_um)
         
         if verbose:
             print(f"PLATE CHARACTERISTIQUES:\n\
-\tplate thickness   : {self.plate_thickness:.6f}, {plate_thickness_scaled}\n\
+\tplate thickness   : {self.plate_thickness:.6f}\n\
 \tplate edge length : {self.input_data['plate_edge_length']:.6f}")
     
     def deploy(self, active_cells, target_percents, view=None, rod_colors=None, uidBased=False, verbose=True, show_plots=False):
@@ -58,9 +55,11 @@ class UmbrellaGrid:
                                                           analysis = True,
                                                           dep_weights=dep_weights)
         if verbose:
-            print('success : ', success, '\n')
-            print('energies:')
-            print(*allEnergies(self.curr_um).items(), sep='\n')
+            print('success:', success, '\n')
+            ener = 'energies:\n'
+            for e in allEnergies(self.curr_um).items():
+                ener += f'  {e[1]: 10f}: {e[0]}\n'
+            print(ener)
         if show_plots:
             eqays.plot()
 
@@ -69,8 +68,10 @@ class UmbrellaGrid:
             step = 2*self.cols
             if self.rows==1:
                 return [0, step-1]
+            if self.cols==1:
+                return [0, 2*self.rows-1]
             
-        if self.degree==4:
+        if self.degree==4: # can't have unitary cols/rows
             step = self.cols
         bot_left  = 0
         bot_right = step-1
@@ -117,9 +118,7 @@ class UmbrellaGrid:
     def _get_num_links(self):
         nb_links = self.rows*(self.cols-1)
         if self.degree==3:
-            nb_links += self.cols*(2*self.rows-1)
+            return nb_links + self.cols*(2*self.rows-1)
         elif self.degree==4:
-            nb_links += self.cols*(  self.rows-1)
-        return nb_links
-
-        
+            return nb_links + self.cols*(  self.rows-1)
+        else: raise ValueError('undefined function `_get_num_links` for this degree value')
