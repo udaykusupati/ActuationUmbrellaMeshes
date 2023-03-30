@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import sys
+import os
 sys.path.append('..')
 import umbrella_mesh
 import linkage_vis
@@ -37,11 +38,17 @@ def percent_to_height(init_height, thickness, indexes, percents):
 
 def deploy_in_steps(curr_um, input_data, init_heights, init_center_pos,
                     plate_thickness, active_cells, target_percents,
-                    steps=10):
+                    steps=10, show_percent=False, stress_type='maxBending', dir_name='test', show_plot=True):
         dep_weights = set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
         
-        # deployent in steps        
-        stresses_per_steps = np.zeros((steps, curr_um.numUmbrellas(), curr_um.numUmbrellas()))
+        
+        # folder to save images
+        dir_name = f'./images/{dir_name}'
+        create_dir(dir_name)
+        
+        
+        # deployent in steps
+        stresses_per_steps = np.zeros((steps+1, curr_um.numUmbrellas(), curr_um.numUmbrellas())) # 1st step is deployment 0%
         percents_per_steps = []
         
         '''
@@ -53,8 +60,8 @@ def deploy_in_steps(curr_um, input_data, init_heights, init_center_pos,
         
         -> show percentage at intermediate steps
         '''
-        for s in range(steps):
-            target_percents_step = [p*(s+1)/steps for p in target_percents]
+        for s in range(steps+1):
+            target_percents_step = [p*s/steps for p in target_percents]
             percents_per_steps.append(target_percents_step)
             target_heights = percent_to_height(init_heights, plate_thickness, active_cells, target_percents_step)
             target_height_multiplier = set_target_height(curr_um.numUmbrellas(), active_cells, target_heights)
@@ -63,19 +70,44 @@ def deploy_in_steps(curr_um, input_data, init_heights, init_center_pos,
                                                           target_height_multiplier,
                                                           dep_weights=dep_weights)
             if success:
-                stresses_per_steps[s] = _get_max_stress_matrix(curr_um)
+                stresses_per_steps[s] = _get_max_stress_matrix(curr_um, stress_type)
             else: raise ValueError(f'did not converge at step {s}.')
         
-        stresses_per_steps_nz = stresses_per_steps[np.nonzero(stresses_per_steps)]
-        max_, min_ = stresses_per_steps_nz.max(),stresses_per_steps_nz.min()
         # plots results
-        for s_matrix in stresses_per_steps:
-            _, ax = plt.subplots()
-            _ax_arms_as_stress(ax, input_data, s_matrix, min_, max_, init_center_pos)
-            ax.axis('equal')
-            plt.title(f'max_stress:{s_matrix.max():.2f}')
-            plt.show()
+        max_stresses = []
+        stresses_per_steps_nz = stresses_per_steps[np.nonzero(stresses_per_steps)]
+        min_, max_ = stresses_per_steps_nz.min(),stresses_per_steps_nz.max()
+        for s, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
+            s_stress_max = s_matrix.max()
+            max_stresses.append(s_stress_max)
             
+            title = f'{s/steps*100:.0f}% deployed\n{stress_type}: {s_stress_max:.2f}'
+            fig_saved_name = f'{dir_name}/{stress_type}_'+'{}'+f'_{s/steps*100:0>3.0f}Deployment.jpg'
+            
+            fig_size = 8
+            _, ax_mesh = plt.subplots(figsize=(fig_size, fig_size))
+            _ax_plot_stresses(ax_mesh, input_data, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
+            ax_mesh.set_title(title)
+            ax_mesh.axis('equal')
+            plt.savefig(fig_saved_name.format('structure'))
+            if show_plot: plt.show()
+            plt.close()
+
+            _, ax_plot = plt.subplots(figsize=(fig_size, fig_size))
+            ax_plot.plot(max_stresses)
+            ax_plot.set_xlim(0, steps)
+            ax_plot.set_ylim(0, max_)
+            ax_plot.set_title(title)
+            plt.savefig(fig_saved_name.format('sPlot'))
+            if show_plot: plt.show()
+            plt.close()
+            
+# ------------------------------------------------------------ helpers -
+def create_dir(name):
+    if not os.path.exists(name): os.makedirs(name)
+    else: raise ValueError(f'folder {name} already exists')
+
+
 # ======================================================================
 # ============================================================== PLOTS =
 # ======================================================================
@@ -134,10 +166,7 @@ def plot2D_stress(curr_um, input_data, init_center_pos,
     stress_matrix, min_, max_ = _get_smatrix_min_max(curr_um, stress_type, zero_as_extrem)
     
     _, ax = plt.subplots()
-    _ax_arms_as_stress(ax, input_data, stress_matrix, min_, max_, init_center_pos)
-    _ax_dot_active_cell(ax, active_cells, target_percents, init_center_pos)
-    for i, p in zip(active_cells*show_percent, target_percents):
-        ax.annotate(f'{p: >5}', init_center_pos[i][:2], ha='left', va='center', color='black')
+    _ax_plot_stresses(ax, input_data, stress_matrix, min_, max_, active_cells, target_percents, init_center_pos, show_percent)
     ax.axis('equal')
     plt.show()
     
@@ -158,15 +187,24 @@ def projection2D(input_data, curr_um,
 # ------------------------------------------------------------ helpers -
 def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
     for i, p in zip(active_cells, target_percents):
-        g = p/100
+        r = p/100
         [x,y,_] = positions[i]
-        ax.scatter(x,y, color=(1-g,g,0))
+        ax.scatter(x,y, color=(r,1-r,0))
 
 def _ax_arms_as_stress(ax, input_data, stress_matrix, min_, max_, position):
     for i,j in input_data['umbrella_connectivity']:
         c = _color_map(stress_matrix[i,j], min_, max_)
         [x,y,_] = position[[i,j]].transpose()
         ax.plot(x, y, c=c)
+
+def _ax_show_percent(ax, show_percent, active_cells, target_percents, position): #### HERER : Add ax as param, change in experience function (steps)
+    for i, p in zip(active_cells*show_percent, target_percents):
+        ax.annotate(f'{p: >5.0f}', position[i][:2], ha='left', va='center', color='black')
+
+def _ax_plot_stresses(ax, input_data, stress_matrix, min_, max_, active_cells, percents, position, show_percent):    
+    _ax_arms_as_stress(ax, input_data, stress_matrix, min_, max_, position)
+    _ax_dot_active_cell(ax, active_cells, percents, position)
+    _ax_show_percent(ax, show_percent, active_cells, percents, position)
 
 def _color_map(value, min_, max_, expo=1):
     if max_ == min_:
