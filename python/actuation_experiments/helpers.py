@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -6,6 +7,7 @@ sys.path.append('..')
 import umbrella_mesh
 import linkage_vis
 from visualization_helper import get_color_field
+from configuration import deploy_umbrella_pin_rigid_motion
 
 # ======================================================================
 # ============================================================ GENERAL =
@@ -18,42 +20,75 @@ def get_center_position(curr_um):
         center_position[i] = curr_um.joint(top_idx).position
     return center_position
 
-def set_actives_dep_weights(numUmbrellas,
-                            *active_cells,
+def set_actives_dep_weights(numUmbrellas, *active_cells,
                             dep_factors = np.logspace(-4, 0, 5)):
     weights_per_cell = np.zeros(numUmbrellas)
     weights_per_cell[active_cells] = 1
     return np.einsum('i, j -> ij', dep_factors, weights_per_cell)
 
-def set_target_height(numUmbrellas,
-                      active_cell,
-                      target_heights):
+def set_target_height(numUmbrellas, active_cell, target_heights):
     target_height_multiplier = np.ones(numUmbrellas)*-1
     target_height_multiplier[active_cell] = target_heights
     return target_height_multiplier
 
-def percent_to_height(init_height,
-                      thickness,
-                      indexes,
-                      percents):
+def percent_to_height(init_height, thickness, indexes, percents):
     return [((1-percent/100)*(init_height[idx]-thickness)+thickness)/thickness
             for percent,idx in zip(percents,indexes)]
 
+def deploy_in_steps(curr_um, input_data, init_heights, init_center_pos,
+                    plate_thickness, active_cells, target_percents,
+                    steps=10):
+        dep_weights = set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
+        
+        # deployent in steps        
+        stresses_per_steps = np.zeros((steps, curr_um.numUmbrellas(), curr_um.numUmbrellas()))
+        percents_per_steps = []
+        
+        '''
+        deployment 1:
+        linear from 0 to targets values (one per cell)
+        
+        deployment 2:
+        linear from 0 to max value, once the max value of particular cell, it stops deploy
+        
+        -> show percentage at intermediate steps
+        '''
+        for s in range(steps):
+            target_percents_step = [p*(s+1)/steps for p in target_percents]
+            percents_per_steps.append(target_percents_step)
+            target_heights = percent_to_height(init_heights, plate_thickness, active_cells, target_percents_step)
+            target_height_multiplier = set_target_height(curr_um.numUmbrellas(), active_cells, target_heights)
+            success, _ = deploy_umbrella_pin_rigid_motion(curr_um,
+                                                          plate_thickness,
+                                                          target_height_multiplier,
+                                                          dep_weights=dep_weights)
+            if success:
+                stresses_per_steps[s] = _get_max_stress_matrix(curr_um)
+            else: raise ValueError(f'did not converge at step {s}.')
+        
+        stresses_per_steps_nz = stresses_per_steps[np.nonzero(stresses_per_steps)]
+        max_, min_ = stresses_per_steps_nz.max(),stresses_per_steps_nz.min()
+        # plots results
+        for s_matrix in stresses_per_steps:
+            _, ax = plt.subplots()
+            _ax_arms_as_stress(ax, input_data, s_matrix, min_, max_, init_center_pos)
+            ax.axis('equal')
+            plt.title(f'max_stress:{s_matrix.max():.2f}')
+            plt.show()
+            
 # ======================================================================
 # ============================================================== PLOTS =
 # ======================================================================
-def plot3D(curr_um,
-           input_data,
-           rod_colors=None,
-           uidBased=False):
+# ------------------- 3D -------------------
+def plot3D(curr_um, input_data,
+           rod_colors=None, uidBased=False):
     if rod_colors is None:
         rod_colors = get_color_field(curr_um, input_data, uidBased) 
     view = linkage_vis.LinkageViewer(curr_um, width=800, height=600)
     view.update(scalarField = rod_colors)
     return view
 
-def plot3D_stress(curr_um,
-                  stress_type,
+def plot3D_stress(curr_um, stress_type,
                   verbose=True):
     view = linkage_vis.LinkageViewer(curr_um, width=800, height=600)
     stresses = _set_plate_stress_null(curr_um, _get_stresses(curr_um, stress_type))
@@ -64,107 +99,90 @@ def plot3D_stress(curr_um,
     min : {np.array(stresses).min():.2e}')
     return view
 
-def plot2D(input_data,
-           curr_um,
-           show_height=False,
-           active_cells=[],
-           target_percents=[]):
+# ------------------- 2D -------------------
+def plot2D(input_data, curr_um,
+           show_height=False, active_cells=[], target_percents=[]):
     center_position = get_center_position(curr_um)
     vertices = input_data['base_mesh_v']
-    edge     = np.roll(np.insert(input_data['base_mesh_f'], 0, input_data['base_mesh_f'][:,0], axis=1), -1, axis=1)
-
-    ## == plotting == ##
-    fig_length = 15#max(5, len(center_position)**0.5)
-    fig = plt.figure(figsize=(fig_length, fig_length))
-    # cells' edges
+    edge     = np.roll(np.insert(input_data['base_mesh_f'], 0,
+                                 input_data['base_mesh_f'][:,0], axis=1),
+                       -1, axis=1)
+    # plot:
+    _, ax = plt.subplots()
+    # edges
     for e in vertices[edge]:
-        plt.plot(e[:, 0], e[:, 1], color="lightblue")
-    # cell index at its center
+        ax.plot(e[:, 0], e[:, 1], color="lightblue")
+    # index
     for i, [x,y,z] in enumerate(center_position):
-        plt.annotate(f'{i}', (x,y), ha='center', color='black')
-    if show_height:
-        h_max, h_min = max(curr_um.umbrellaHeights), min(curr_um.umbrellaHeights)
-        for [x,y,z], h in zip(center_position, curr_um.umbrellaHeights):
-            if h_max != h_min :
-                r = (h-h_min)/(h_max-h_min)
-                g = 0.1
-                b = 1-r
-            else:
-                r,g,b = 0,0,0
-            plt.annotate(f'[{h:.2f}]', (x,y), textcoords='offset points', xytext=(0,-12), ha='center', c=(r,g,b))
-    # overwrite index if actve_cell
-    if active_cells != []:
-        for i, p in zip(active_cells, target_percents):
-            g = p/100
-            r = 1-g
-            b = 0
-            [x,y,_] = center_position[i]
-            plt.annotate(f'{i}', (x,y), ha='center', color=(r,g,b), weight='bold')
-    
+        ax.annotate(f'{i}', (x,y), ha='center', color='black')
+    # height
+    um_heights = curr_um.umbrellaHeights
+    for [x,y,z], h in zip(show_height*center_position, um_heights):
+        c = _color_map(h, min(um_heights), max(um_heights))
+        ax.annotate(f'[{h:.2f}]', (x,y), textcoords='offset points', xytext=(0,-12), ha='center', c=c)
+    # actve cells
+    for i, p in zip(active_cells, target_percents):
+        g = p/100
+        ax.annotate(f'{i}', center_position[i][:2], ha='center', color=(1-g,g,0), weight='bold')
     # show plot
-    plt.axis('equal')
+    ax.axis('equal')
     plt.show()
 
-def plot2D_stress(curr_um, # TODO : do log scale for stress color (high diff at low values, low diff near high value)
-                  input_data,
-                  init_center_pos,
-                  active_cells=[],
-                  target_percents=[],
-                  stress_type='maxBending',
-                  zero_as_extrem = False,
-                  show_percent=False):
-    matrix = _get_stress_matrix(curr_um, stress_type)
-    max_, min_ = matrix.max(), matrix.min()
-    if not zero_as_extrem:
-        matrix_nz = matrix[np.nonzero(matrix)]
-        max_, min_ = matrix_nz.max(),matrix_nz.min()
-    color = []
-    for i,j in input_data['umbrella_connectivity']:
-        if max_ != min_:
-            r = (matrix[i,j]-min_)/(max_-min_)
-            g = 1-r
-            b = 0
-        else: r,g,b = 0,0,0
-        [x,y,_] = init_center_pos[[i,j]].transpose()
-        plt.plot(x, y, c=(r,g,b))
+def plot2D_stress(curr_um, input_data, init_center_pos,
+                  active_cells=[], target_percents=[], stress_type='maxBending',
+                  zero_as_extrem = False, show_percent=False):
+    stress_matrix, min_, max_ = _get_smatrix_min_max(curr_um, stress_type, zero_as_extrem)
     
-    # color for actve_cell
-    if active_cells != []:
-        for i, p in zip(active_cells, target_percents):
-            g = p/100
-            r = 1-g
-            b = 0
-            [x,y,_] = init_center_pos[i]
-            plt.scatter(x,y, color=(r,g,b))
-            if show_percent:
-                plt.annotate(f'{p: >5}',(x,y), ha='left', va='center', color='black')
-            
-    plt.axis('equal')
+    _, ax = plt.subplots()
+    _ax_arms_as_stress(ax, input_data, stress_matrix, min_, max_, init_center_pos)
+    _ax_dot_active_cell(ax, active_cells, target_percents, init_center_pos)
+    for i, p in zip(active_cells*show_percent, target_percents):
+        ax.annotate(f'{p: >5}', init_center_pos[i][:2], ha='left', va='center', color='black')
+    ax.axis('equal')
     plt.show()
     
-def projection2D(input_data,
-                 curr_um,
-                 active_cells=[],
-                 target_percents=[]):
+def projection2D(input_data, curr_um,
+                 active_cells=[], target_percents=[]):
     center_position = get_center_position(curr_um)
     vertices = input_data['umbrella_connectivity']
     center_xy = np.array(list(zip(center_position[:,0], center_position[:,1])))
     segments = center_xy[vertices]
     
+    _, ax = plt.subplots()
     for s in segments:
-        plt.plot(s[:,0], s[:,1], c='black')
-    
-    # color for actve_cell
-    if active_cells != []:
-        for i, p in zip(active_cells, target_percents):
-            r = p/100
-            g = 1-r
-            b = 0
-            [x,y,_] = center_position[i]
-            plt.scatter(x,y, color=(r,g,b))
-            
-    plt.axis('equal')
+        ax.plot(s[:,0], s[:,1], c='black')
+        _ax_dot_active_cell(ax, active_cells, target_percents, center_position)
+    ax.axis('equal')
     plt.show()
+    
+# ------------------------------------------------------------ helpers -
+def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
+    for i, p in zip(active_cells, target_percents):
+        g = p/100
+        [x,y,_] = positions[i]
+        ax.scatter(x,y, color=(1-g,g,0))
+
+def _ax_arms_as_stress(ax, input_data, stress_matrix, min_, max_, position):
+    for i,j in input_data['umbrella_connectivity']:
+        c = _color_map(stress_matrix[i,j], min_, max_)
+        [x,y,_] = position[[i,j]].transpose()
+        ax.plot(x, y, c=c)
+
+def _color_map(value, min_, max_, expo=1):
+    if max_ == min_:
+        return 0,0,0
+    r = ((value-min_)/(max_-min_))**expo
+    g = 1-r
+    b = 0
+    return r,g,b
+
+def _get_smatrix_min_max(curr_um, stress_type,
+                         zero_as_extrem=False):
+    matrix = _get_max_stress_matrix(curr_um, stress_type)
+    if not zero_as_extrem:
+        tmp = matrix[np.nonzero(matrix)]
+        return matrix, tmp.min(), tmp.max()
+    return matrix, matrix.min(), matrix.max()
 
 
 # ======================================================================
@@ -179,7 +197,7 @@ def _set_plate_stress_null(curr_um,
             stresses[sid] = 0
     return stresses.tolist()
 
-def _get_stress_matrix(curr_um,
+def _get_max_stress_matrix(curr_um,
                        stress_type='maxBending'):
     '''return the adjacency max stress matrix'''
     matrix = np.zeros((curr_um.numUmbrellas(), curr_um.numUmbrellas()))
