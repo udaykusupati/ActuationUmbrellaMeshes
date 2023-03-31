@@ -106,7 +106,7 @@ class UmbrellaGrid:
                     return [a-1, a]
                 else:
                     return [a]
-    def vline(self, i=0):
+    def vline_cells(self, i=0):
         if i > self.cols*2: raise ValueError(f'vertical line index ({i}) should not be greater than {self.cols}')
         line = []
         for j in range(self.rows):
@@ -114,7 +114,7 @@ class UmbrellaGrid:
             if self.degree==4: line+=[i+j*self.cols]
         return line
 
-    def hline(self, i=0):
+    def hline_cells(self, i=0):
         if i > self.rows: raise ValueError(f'horizontal line index ({i}) should not be greater than {self.rows}')
         line = []
         for j in range(2*self.cols):
@@ -122,7 +122,7 @@ class UmbrellaGrid:
             if self.degree==4: line+=[i*self.cols+j]
         return line
     
-    def cross(self, length=0):
+    def cross_cells(self, length=0):
         # raise Error is incorect value
         cross = [] # should we get `larger` as parameter ?
         center = self.center_cells()
