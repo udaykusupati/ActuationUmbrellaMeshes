@@ -36,16 +36,9 @@ def percent_to_height(init_height, thickness, indexes, percents):
     return [((1-percent/100)*(init_height[idx]-thickness)+thickness)/thickness
             for percent,idx in zip(percents,indexes)]
 
-def deploy_in_steps(curr_um, input_data, init_heights, init_center_pos,
-                    plate_thickness, active_cells, target_percents,
-                    steps=10, show_percent=False, stress_type='maxBending', dir_name='test', show_plot=True):
+def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents,
+                    steps=10, stress_type='maxBending', verbose=True):
         dep_weights = set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
-        
-        
-        # folder to save images
-        dir_name = f'./images/{dir_name}'
-        create_dir(dir_name)
-        
         
         # deployent in steps
         stresses_per_steps = np.zeros((steps+1, curr_um.numUmbrellas(), curr_um.numUmbrellas())) # 1st step is deployment 0%
@@ -58,7 +51,11 @@ def deploy_in_steps(curr_um, input_data, init_heights, init_center_pos,
         deployment 2:
         linear from 0 to max value, once the max value of particular cell, it stops deploy
         
-        -> show percentage at intermediate steps
+        
+        --> do the same for streses:
+        1)normalize each arm by absolute max/min
+        2)normalize each arm by its own min/max (what abous zeros?)
+        
         '''
         for s in range(steps+1):
             target_percents_step = [p*s/steps for p in target_percents]
@@ -71,41 +68,55 @@ def deploy_in_steps(curr_um, input_data, init_heights, init_center_pos,
                                                           dep_weights=dep_weights)
             if success:
                 stresses_per_steps[s] = _get_max_stress_matrix(curr_um, stress_type)
+                if verbose: print(f'step {s: >2}/{steps} computed.')
             else: raise ValueError(f'did not converge at step {s}.')
         
-        # plots results
-        max_stresses = []
-        stresses_per_steps_nz = stresses_per_steps[np.nonzero(stresses_per_steps)]
-        min_, max_ = stresses_per_steps_nz.min(),stresses_per_steps_nz.max()
-        for s, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
-            s_stress_max = s_matrix.max()
-            max_stresses.append(s_stress_max)
+        return stresses_per_steps, percents_per_steps
+        
+#         # plots results
+#         max_stresses = []
+#         stresses_all_nz = stresses_per_steps[stresses_per_steps != 0]
+#         min_stress_all, max_stress_all = stresses_all_nz.min(),stresses_all_nz.max()
+#         max_x, max_y = steps, stresses_all_nz.max()
+        
+        
+#         for s, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
+#             min_stress_step = s_matrix.min()
+#             max_stress_step = s_matrix.max()
+#             if s==0: min_stress_step, max_stress_step = 0,0 # manage random perturbation, at step 0, no deploymen at all
+#             max_stresses.append(max_stress_step)
             
-            title = f'{s/steps*100:.0f}% deployed\n{stress_type}: {s_stress_max:.2f}'
-            fig_saved_name = f'{dir_name}/{stress_type}_'+'{}'+f'_{s/steps*100:0>3.0f}Deployment.jpg'
+#             title = f'{s/steps*100:.0f}% deployed\n{stress_type}: {max_stress_step:.2f}'
+#             fig_saved_name = f'{dir_name}/{stress_type}_'+'{}'+f'_{s/steps*100:0>3.0f}Deployment.jpg'
             
-            fig_size = 8
-            _, ax_mesh = plt.subplots(figsize=(fig_size, fig_size))
-            _ax_plot_stresses(ax_mesh, input_data, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
-            ax_mesh.set_title(title)
-            ax_mesh.axis('equal')
-            plt.savefig(fig_saved_name.format('structure'))
-            if show_plot: plt.show()
-            plt.close()
+#             fig_size = 8
+#             _, ax_mesh_all = plt.subplots(figsize=(fig_size, fig_size))
+#             _ax_plot_stresses(ax_mesh_all, input_data, s_matrix, min_stress_all, max_stress_all, active_cells, percents, init_center_pos, show_percent)
+#             ax_mesh_all.set_title(title)
+#             ax_mesh_all.axis('equal')
+#             plt.savefig(fig_saved_name.format('structure_all'))
+#             if show_plot: plt.show()
+#             plt.close()
+            
+#             _, ax_mesh_steps = plt.subplots(figsize=(fig_size, fig_size))
+#             _ax_plot_stresses(ax_mesh_steps, input_data, s_matrix, min_stress_step, max_stress_step, active_cells, percents, init_center_pos, show_percent)
+#             ax_mesh_steps.set_title(title)
+#             ax_mesh_steps.axis('equal')
+#             plt.savefig(fig_saved_name.format('structure_perSteps'))
+#             if show_plot: plt.show()
+#             plt.close()
 
-            _, ax_plot = plt.subplots(figsize=(fig_size, fig_size))
-            ax_plot.plot(max_stresses)
-            ax_plot.set_xlim(0, steps)
-            ax_plot.set_ylim(0, max_)
-            ax_plot.set_title(title)
-            plt.savefig(fig_saved_name.format('sPlot'))
-            if show_plot: plt.show()
-            plt.close()
-            
-# ------------------------------------------------------------ helpers -
-def create_dir(name):
-    if not os.path.exists(name): os.makedirs(name)
-    else: raise ValueError(f'folder {name} already exists')
+#             _, ax_plot = plt.subplots(figsize=(fig_size, fig_size))
+#             ax_plot.plot(max_stresses)
+#             ax_plot.set_xlim(0, max_x)
+#             ax_plot.set_ylim(0, max_y)
+#             ax_plot.set_title(title)
+#             plt.savefig(fig_saved_name.format('sPlot'))
+#             if show_plot: plt.show()
+#             plt.close()
+
+#             if verbose: print(f'figure {s} saved.')
+
 
 
 # ======================================================================
@@ -140,7 +151,8 @@ def plot2D(input_data, curr_um,
                                  input_data['base_mesh_f'][:,0], axis=1),
                        -1, axis=1)
     # plot:
-    _, ax = plt.subplots()
+    fig_size = 15
+    _, ax = plt.subplots(figsize=(fig_size, fig_size))
     # edges
     for e in vertices[edge]:
         ax.plot(e[:, 0], e[:, 1], color="lightblue")
@@ -184,6 +196,49 @@ def projection2D(input_data, curr_um,
     ax.axis('equal')
     plt.show()
     
+    
+def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, stresses_per_steps,
+                 stress_type='maxBending', dir_name='00_test',
+                 show_percent=False, show_plot=True):
+    steps = stresses_per_steps.shape[0]-1
+    max_stresses = []
+    stresses_all_nz = stresses_per_steps[stresses_per_steps != 0]
+    min_stress_all, max_stress_all = stresses_all_nz.min(), stresses_all_nz.max()
+    max_x, max_y = steps, stresses_all_nz.max()
+
+    # folder to save images
+    dir_name = f'./images/{dir_name}'
+    _create_dir(dir_name)
+
+    src = np.array(input_data['umbrella_connectivity'])[:,0]
+    dst = np.array(input_data['umbrella_connectivity'])[:,1]
+    max_stress_per_arm = stresses_per_steps.transpose()[src,dst].max(axis=1)
+        
+    for s, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
+        min_stress_step = s_matrix[s_matrix != 0].min()
+        max_stress_step = s_matrix[s_matrix != 0].max()
+        if s==0: min_stress_step, max_stress_step = 0,0 # manage random perturbation, at step 0, no deploymen at all
+        max_stresses.append(max_stress_step)
+
+        title = f'{s/steps*100:.0f}% deployed\n{stress_type}: {max_stress_step:.2f}'
+        fig_saved_name = f'{dir_name}/{stress_type}_'+'{}'+f'_{s/steps*100:0>3.0f}Deployment.jpg'
+
+        # normalized with general extrems values
+        _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
+                          s_matrix, min_stress_all, max_stress_all, show_plot, title, fig_saved_name.format('structure_all'))
+        
+        # normalized with step extrems values
+        _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
+                          s_matrix, min_stress_step, max_stress_step, show_plot, title, fig_saved_name.format('structure_perSteps'))
+
+        # normalized with own extrems values
+        _fig_stress_compare_own(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, max_stress_per_arm, show_plot, title,
+                                fig_saved_name.format('structure_own'))
+        
+        # stress curve
+        _fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, fig_saved_name.format('sPlot'))
+        
+    
 # ------------------------------------------------------------ helpers -
 def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
     for i, p in zip(active_cells, target_percents):
@@ -191,9 +246,9 @@ def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
         [x,y,_] = positions[i]
         ax.scatter(x,y, color=(r,1-r,0))
 
-def _ax_arms_as_stress(ax, input_data, stress_matrix, min_, max_, position):
+def _ax_arms_as_stress(ax, input_data, s_matrix, min_, max_, position):
     for i,j in input_data['umbrella_connectivity']:
-        c = _color_map(stress_matrix[i,j], min_, max_)
+        c = _color_map(s_matrix[i,j], min_, max_)
         [x,y,_] = position[[i,j]].transpose()
         ax.plot(x, y, c=c)
 
@@ -205,11 +260,50 @@ def _ax_plot_stresses(ax, input_data, stress_matrix, min_, max_, active_cells, p
     _ax_arms_as_stress(ax, input_data, stress_matrix, min_, max_, position)
     _ax_dot_active_cell(ax, active_cells, percents, position)
     _ax_show_percent(ax, show_percent, active_cells, percents, position)
+    
+def _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, file_name=''):
+    fig_size = 8
+    _, ax = plt.subplots(figsize=(fig_size, fig_size))
+    _ax_plot_stresses(ax, input_data, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
+    ax.set_title(title)
+    ax.axis('equal')
+    if file_name != '': plt.savefig(file_name)
+    if show_plot: plt.show()
+    plt.close()
+    
+def _fig_stress_compare_own(input_data, active_cells, percents, position, show_percent, s_matrix, max_ls, show_plot, title, file_name=''):
+    fig_size = 8
+    _, ax = plt.subplots(figsize=(fig_size, fig_size))
+
+    for arm,(i,j) in enumerate(input_data['umbrella_connectivity']):
+        c = _color_map(s_matrix[i,j], 0, max_ls[arm]) # min is always 0s (undeployed state)
+        [x,y,_] = position[[i,j]].transpose()
+        ax.plot(x, y, c=c)
+    _ax_dot_active_cell(ax, active_cells, percents, position)
+    _ax_show_percent(ax, show_percent, active_cells, percents, position)
+    
+    ax.set_title(title)
+    ax.axis('equal')
+    if file_name != '': plt.savefig(file_name)
+    if show_plot: plt.show()
+    plt.close()
+
+def _fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, file_name=''):
+    fig_size = 8
+    _, ax = plt.subplots(figsize=(fig_size, fig_size))
+    ax.plot(max_stresses)
+    ax.set_xlim(0, max_x)
+    ax.set_ylim(0, max_y)
+    ax.set_title(title)
+    if file_name != '': plt.savefig(file_name)
+    if show_plot: plt.show()
+    plt.close()
 
 def _color_map(value, min_, max_, expo=1):
     if max_ == min_:
-        return 0,0,0
-    r = ((value-min_)/(max_-min_))**expo
+        if max_ == 0: return 0,1,0 # no stress at all -> green
+        else:         return 0,0,0 # max stress/height everywhere
+    r = ((value-min_)/(max_-min_))**expo # [RK] thy some expo <1
     g = 1-r
     b = 0
     return r,g,b
@@ -221,6 +315,10 @@ def _get_smatrix_min_max(curr_um, stress_type,
         tmp = matrix[np.nonzero(matrix)]
         return matrix, tmp.min(), tmp.max()
     return matrix, matrix.min(), matrix.max()
+
+def _create_dir(name):
+    if not os.path.exists(name): os.makedirs(name)
+    else: raise ValueError(f'folder {name} already exists')
 
 
 # ======================================================================

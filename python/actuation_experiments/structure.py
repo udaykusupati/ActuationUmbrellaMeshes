@@ -1,4 +1,5 @@
 import sys
+import numpy as np
 from helpers import set_actives_dep_weights, set_target_height, percent_to_height, get_center_position
 sys.path.append('..')
 from configuration import parse_input, deploy_umbrella_pin_rigid_motion
@@ -105,7 +106,38 @@ class UmbrellaGrid:
                     return [a-1, a]
                 else:
                     return [a]
-            
+    def vline(self, i=0):
+        if i > self.cols*2: raise ValueError(f'vertical line index ({i}) should not be greater than {self.cols}')
+        line = []
+        for j in range(self.rows):
+            if self.degree==3: line+=[i+j*(2*self.cols)]
+            if self.degree==4: line+=[i+j*self.cols]
+        return line
+
+    def hline(self, i=0):
+        if i > self.rows: raise ValueError(f'horizontal line index ({i}) should not be greater than {self.rows}')
+        line = []
+        for j in range(2*self.cols):
+            if self.degree==3: line+=[i*(2*self.cols)+j]
+            if self.degree==4: line+=[i*self.cols+j]
+        return line
+    
+    def cross(self, length=0):
+        # raise Error is incorect value
+        cross = [] # should we get `larger` as parameter ?
+        center = self.center_cells()
+        for l in range(length):
+            for i,c in enumerate(center):
+                if self.degree==4:
+                    cross.extend([c-l, c+l]) # horizontal
+                    cross.extend([c-l*self.cols, c+l*self.cols]) # vertical
+                if self.degree==3:
+                    a = c-l*(2*self.cols)
+                    b = c+l*(2*self.cols)
+                    cross.extend([c-l-1, c+l+1]) # horizontal
+                    cross.extend([a, b]) # vertical
+        return list(np.unique(np.array(cross)))
+    
     # =====
     # Helpers
     # =====

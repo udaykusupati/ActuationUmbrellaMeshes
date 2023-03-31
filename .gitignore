@@ -8,3 +8,6 @@ build_*/
 python/ElasticRods
 python/MeshFEM
 .ipynb_checkpoints/
+
+# results images
+python/actuation_experiments/images/
