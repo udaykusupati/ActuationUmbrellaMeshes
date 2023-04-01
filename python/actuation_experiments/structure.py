@@ -64,7 +64,7 @@ class UmbrellaGrid:
         if show_plots:
             eqays.plot()
 
-    def border_cells(self):
+    def border(self):
         if self.degree==3:
             step = 2*self.cols
             if self.rows==1:
@@ -83,7 +83,7 @@ class UmbrellaGrid:
                 list(range(step, top_left, step)) + \
                 list(range(top_left,top_right))
 
-    def center_cells(self):
+    def center(self):
         if self.degree==3:
             if self.rows%2==0:
                 a = (self.rows-1)*self.cols-1
@@ -106,23 +106,18 @@ class UmbrellaGrid:
                     return [a-1, a]
                 else:
                     return [a]
-    def vline_cells(self, i=0):
-        if i > self.cols*2: raise ValueError(f'vertical line index ({i}) should not be greater than {self.cols}')
-        line = []
-        for j in range(self.rows):
-            if self.degree==3: line+=[i+j*(2*self.cols)]
-            if self.degree==4: line+=[i+j*self.cols]
-        return line
-
-    def hline_cells(self, i=0):
-        if i > self.rows: raise ValueError(f'horizontal line index ({i}) should not be greater than {self.rows}')
-        line = []
-        for j in range(2*self.cols):
-            if self.degree==3: line+=[i*(2*self.cols)+j]
-            if self.degree==4: line+=[i*self.cols+j]
-        return line
+    def vline(self, i=0):
+        e_msg = f'vertical line index ({i}) should not be greater than'+ ' {}'
+        if self.degree==3: return self._vline(i, e_msg, 2)
+        if self.degree==4: return self._vline(i, e_msg, 1)
     
-    def cross_cells(self, length=0):
+
+    def hline(self, i=0):
+        e_msg = f'horizontal line index ({i}) should not be greater than'+' {}'
+        if self.degree==3: return self._hline(i, e_msg, 2)
+        if self.degree==4: return self._hline(i, e_msg, 1)
+    
+    def cross(self, length=0):
         # raise Error is incorect value
         cross = [] # should we get `larger` as parameter ?
         center = self.center_cells()
@@ -154,3 +149,20 @@ class UmbrellaGrid:
         elif self.degree==4:
             return nb_links + self.cols*(  self.rows-1)
         else: raise ValueError('undefined function `_get_num_links` for this degree value')
+        
+    # V-line
+    def _vline(self, i, msg, step=1):
+        if i > step*self.cols-1: raise ValueError(e_msg.format(step*self.cols-1))
+        line = []
+        for j in range(self.rows):
+            line+=[i+j*step*self.cols]
+        return line
+    
+    # H-line
+    def _hline(self, i, msg, step=1):
+        if i > self.rows-1: raise ValueError(msg.format(self.rows-1))
+        line = []
+        for j in range(step*self.cols):
+            line+=[(step*self.cols)*i+j]
+        return line
+        

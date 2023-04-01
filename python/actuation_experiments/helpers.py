@@ -43,22 +43,10 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
         # deployent in steps
         stresses_per_steps = np.zeros((steps+1, curr_um.numUmbrellas(), curr_um.numUmbrellas())) # 1st step is deployment 0%
         percents_per_steps = []
-        
-        '''
-        deployment 1:
-        linear from 0 to targets values (one per cell)
-        
-        deployment 2:
-        linear from 0 to max value, once the max value of particular cell, it stops deploy
-        
-        
-        --> do the same for streses:
-        1)normalize each arm by absolute max/min
-        2)normalize each arm by its own min/max (what abous zeros?)
-        
-        '''
+
         for s in range(steps+1):
             target_percents_step = [p*s/steps for p in target_percents]
+            
             percents_per_steps.append(target_percents_step)
             target_heights = percent_to_height(init_heights, plate_thickness, active_cells, target_percents_step)
             target_height_multiplier = set_target_height(curr_um.numUmbrellas(), active_cells, target_heights)
@@ -72,51 +60,6 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
             else: raise ValueError(f'did not converge at step {s}.')
         
         return stresses_per_steps, percents_per_steps
-        
-#         # plots results
-#         max_stresses = []
-#         stresses_all_nz = stresses_per_steps[stresses_per_steps != 0]
-#         min_stress_all, max_stress_all = stresses_all_nz.min(),stresses_all_nz.max()
-#         max_x, max_y = steps, stresses_all_nz.max()
-        
-        
-#         for s, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
-#             min_stress_step = s_matrix.min()
-#             max_stress_step = s_matrix.max()
-#             if s==0: min_stress_step, max_stress_step = 0,0 # manage random perturbation, at step 0, no deploymen at all
-#             max_stresses.append(max_stress_step)
-            
-#             title = f'{s/steps*100:.0f}% deployed\n{stress_type}: {max_stress_step:.2f}'
-#             fig_saved_name = f'{dir_name}/{stress_type}_'+'{}'+f'_{s/steps*100:0>3.0f}Deployment.jpg'
-            
-#             fig_size = 8
-#             _, ax_mesh_all = plt.subplots(figsize=(fig_size, fig_size))
-#             _ax_plot_stresses(ax_mesh_all, input_data, s_matrix, min_stress_all, max_stress_all, active_cells, percents, init_center_pos, show_percent)
-#             ax_mesh_all.set_title(title)
-#             ax_mesh_all.axis('equal')
-#             plt.savefig(fig_saved_name.format('structure_all'))
-#             if show_plot: plt.show()
-#             plt.close()
-            
-#             _, ax_mesh_steps = plt.subplots(figsize=(fig_size, fig_size))
-#             _ax_plot_stresses(ax_mesh_steps, input_data, s_matrix, min_stress_step, max_stress_step, active_cells, percents, init_center_pos, show_percent)
-#             ax_mesh_steps.set_title(title)
-#             ax_mesh_steps.axis('equal')
-#             plt.savefig(fig_saved_name.format('structure_perSteps'))
-#             if show_plot: plt.show()
-#             plt.close()
-
-#             _, ax_plot = plt.subplots(figsize=(fig_size, fig_size))
-#             ax_plot.plot(max_stresses)
-#             ax_plot.set_xlim(0, max_x)
-#             ax_plot.set_ylim(0, max_y)
-#             ax_plot.set_title(title)
-#             plt.savefig(fig_saved_name.format('sPlot'))
-#             if show_plot: plt.show()
-#             plt.close()
-
-#             if verbose: print(f'figure {s} saved.')
-
 
 
 # ======================================================================
@@ -166,8 +109,8 @@ def plot2D(input_data, curr_um,
         ax.annotate(f'[{h:.2f}]', (x,y), textcoords='offset points', xytext=(0,-12), ha='center', c=c)
     # actve cells
     for i, p in zip(active_cells, target_percents):
-        g = p/100
-        ax.annotate(f'{i}', center_position[i][:2], ha='center', color=(1-g,g,0), weight='bold')
+        r = p/100
+        ax.annotate(f'{i}', center_position[i][:2], ha='center', color=(r,1-r,0), weight='bold')
     # show plot
     ax.axis('equal')
     plt.show()
@@ -303,7 +246,7 @@ def _color_map(value, min_, max_, expo=1):
     if max_ == min_:
         if max_ == 0: return 0,1,0 # no stress at all -> green
         else:         return 0,0,0 # max stress/height everywhere
-    r = ((value-min_)/(max_-min_))**expo # [RK] thy some expo <1
+    r = ((value-min_)/(max_-min_))**expo # [xRK] thy some expo <1
     g = 1-r
     b = 0
     return r,g,b
