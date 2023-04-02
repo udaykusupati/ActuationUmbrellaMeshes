@@ -1,5 +1,7 @@
 import math
 import numpy as np
+import matplotlib as mpl
+from matplotlib import colormaps
 import matplotlib.pyplot as plt
 
 import sys
@@ -37,7 +39,7 @@ def percent_to_height(init_height, thickness, indexes, percents):
             for percent,idx in zip(percents,indexes)]
 
 def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents,
-                    steps=10, stress_type='maxBending', verbose=True):
+                    steps=10, stress_type='maxBending', verbose=True, dep='linear'):
         dep_weights = set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
         
         # deployent in steps
@@ -45,7 +47,11 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
         percents_per_steps = []
 
         for s in range(steps+1):
-            target_percents_step = [p*s/steps for p in target_percents]
+            if dep=='linear': target_percents_step = [p*s/steps for p in target_percents]
+            if dep=='min': target_percents_step = [min(p, 100*s/steps) for p in target_percents]
+            if dep=='max':
+                max_p = max(target_percents)
+                target_percents_step = [min(p, max_p*s/steps) for p in target_percents]
             
             percents_per_steps.append(target_percents_step)
             target_heights = percent_to_height(init_heights, plate_thickness, active_cells, target_percents_step)
@@ -156,30 +162,36 @@ def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, 
     src = np.array(input_data['umbrella_connectivity'])[:,0]
     dst = np.array(input_data['umbrella_connectivity'])[:,1]
     max_stress_per_arm = stresses_per_steps.transpose()[src,dst].max(axis=1)
-        
+    
+    title = '{:.0f}% deployed\n'+f'{stress_type}:'+' {:.2f}'
+    fig_saved_name = f'{dir_name}/{stress_type}_'+'{{}}_{:0>3.0f}Deployment.jpg'
+    
     for s, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
         min_stress_step = s_matrix[s_matrix != 0].min()
         max_stress_step = s_matrix[s_matrix != 0].max()
         if s==0: min_stress_step, max_stress_step = 0,0 # manage random perturbation, at step 0, no deploymen at all
         max_stresses.append(max_stress_step)
 
-        title = f'{s/steps*100:.0f}% deployed\n{stress_type}: {max_stress_step:.2f}'
-        fig_saved_name = f'{dir_name}/{stress_type}_'+'{}'+f'_{s/steps*100:0>3.0f}Deployment.jpg'
+        title_s = title.format(s/steps*100, max_stress_step)
+        fig_saved_name_s = fig_saved_name.format(s/steps*100)
 
         # normalized with general extrems values
         _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
-                          s_matrix, min_stress_all, max_stress_all, show_plot, title, fig_saved_name.format('structure_all'))
+                          s_matrix, min_stress_all, max_stress_all, show_plot, title_s, fig_saved_name_s.format('structure_all'))
         
         # normalized with step extrems values
         _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
-                          s_matrix, min_stress_step, max_stress_step, show_plot, title, fig_saved_name.format('structure_perSteps'))
+                          s_matrix, min_stress_step, max_stress_step, show_plot, title_s, fig_saved_name_s.format('structure_perSteps'))
 
         # normalized with own extrems values
-        _fig_stress_compare_own(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, max_stress_per_arm, show_plot, title,
-                                fig_saved_name.format('structure_own'))
+        _fig_stress_compare_own(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, max_stress_per_arm, show_plot, title_s,
+                                fig_saved_name_s.format('structure_own'))
+        
+        # ordered stresses
+        _fig_stress_scatter(s_matrix, max_y, show_plot, title_s, fig_saved_name_s.format('scatter'))
         
         # stress curve
-        _fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, fig_saved_name.format('sPlot'))
+        _fig_stress_curve(max_stresses, max_x, max_y, show_plot, title_s, fig_saved_name_s.format('sPlot'))
         
     
 # ------------------------------------------------------------ helpers -
@@ -191,7 +203,7 @@ def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
 
 def _ax_arms_as_stress(ax, input_data, s_matrix, min_, max_, position):
     for i,j in input_data['umbrella_connectivity']:
-        c = _color_map(s_matrix[i,j], min_, max_)
+        c = _color_map(s_matrix[i,j], min_, max_, 'turbo')
         [x,y,_] = position[[i,j]].transpose()
         ax.plot(x, y, c=c)
 
@@ -242,11 +254,29 @@ def _fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, file_name=''
     if show_plot: plt.show()
     plt.close()
 
-def _color_map(value, min_, max_, expo=1):
+def _fig_stress_scatter(s_matrix, max_y, show_plot, title, file_name=''):
+    fig_size = 8
+    _, ax = plt.subplots(figsize=(fig_size, fig_size))
+    sort = np.flip(np.unique(s_matrix[s_matrix!=0]))
+    ax.scatter(range(len(sort)), sort, s=1)
+    ax.set_ylim(0, max_y)
+    ax.set_title(title)
+    if file_name != '': plt.savefig(file_name)
+    if show_plot: plt.show()
+    plt.close()
+    
+def _color_map(value, min_, max_, cmap_name='', nombre=256):
     if max_ == min_:
         if max_ == 0: return 0,1,0 # no stress at all -> green
         else:         return 0,0,0 # max stress/height everywhere
-    r = ((value-min_)/(max_-min_))**expo # [xRK] thy some expo <1
+
+    p = (value-min_)/(max_-min_)
+    if cmap_name!='':
+        return colormaps[cmap_name].resampled(nombre).colors[int(p*(nombre-1))]
+        # do not work for 'jet' nor 'rgb' or others colormap (no attribute `colors`)
+    
+    # default: linear red to green
+    r = p #[RK] try some exponential values
     g = 1-r
     b = 0
     return r,g,b
