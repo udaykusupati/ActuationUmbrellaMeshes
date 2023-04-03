@@ -155,7 +155,7 @@ def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, 
     min_stress_all, max_stress_all = stresses_all_nz.min(), stresses_all_nz.max()
     max_x, max_y = steps, stresses_all_nz.max()+5
 
-    # folder to save
+    # folder to save jpg and gif
     dir_name = f'./{dir_name}'
     _create_dir(dir_name)
 
@@ -164,34 +164,40 @@ def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, 
     max_stress_per_arm = stresses_per_steps.transpose()[src,dst].max(axis=1)
     
     title = '{:.0f}% deployed\n'+f'{stress_type}:'+' {:.2f}'
-    fig_saved_name = f'{dir_name}/{stress_type}_'+'{{}}_{:0>3.0f}Deployment.jpg'
+    fig_saved_name = f'{dir_name}/{stress_type}_'+'{{}}_{:0>3.0f}Deployment'
+    
+    
+    # random perturbations does affect undeployed state
+    deployed = False
     
     for s, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
         min_stress_step = s_matrix[s_matrix != 0].min()
         max_stress_step = s_matrix[s_matrix != 0].max()
-        if s==0: min_stress_step, max_stress_step = 0,0 # manage random perturbation, at step 0, no deploymen at all
         max_stresses.append(max_stress_step)
 
         title_s = title.format(s/steps*100, max_stress_step)
         fig_saved_name_s = fig_saved_name.format(s/steps*100)
-
+        
         # normalized with general extrems values
         _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
-                          s_matrix, min_stress_all, max_stress_all, show_plot, title_s, fig_saved_name_s.format('structure_all'))
+                          s_matrix, deployed*min_stress_all, deployed*max_stress_all, show_plot, title_s, fig_saved_name_s.format('structure_all'))
         
         # normalized with step extrems values
         _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
-                          s_matrix, min_stress_step, max_stress_step, show_plot, title_s, fig_saved_name_s.format('structure_perSteps'))
+                          s_matrix, deployed*min_stress_step, deployed*max_stress_step, show_plot, title_s, fig_saved_name_s.format('structure_perSteps'))
 
         # normalized with own extrems values
-        _fig_stress_compare_own(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, max_stress_per_arm, show_plot, title_s,
+        _fig_stress_compare_own(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, deployed*max_stress_per_arm, show_plot, title_s,
                                 fig_saved_name_s.format('structure_own'))
         
         # ordered stresses
-        _fig_stress_scatter(s_matrix, max_y, show_plot, title_s, fig_saved_name_s.format('scatter'))
+        _fig_stress_scatter(deployed*s_matrix, max_y, show_plot, title_s, fig_saved_name_s.format('scatter'))
         
         # stress curve
-        _fig_stress_curve(max_stresses, max_x, max_y, show_plot, title_s, fig_saved_name_s.format('sPlot'))
+        _fig_stress_curve(deployed*max_stresses, max_x, max_y, show_plot, title_s, fig_saved_name_s.format('sPlot'))
+        
+        # perturbations do not affect deployed state
+        deployed = True
         
     
 # ------------------------------------------------------------ helpers -
@@ -222,7 +228,9 @@ def _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_
     _ax_plot_stresses(ax, input_data, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
     ax.set_title(title)
     ax.axis('equal')
-    if file_name != '': plt.savefig(file_name)
+    if file_name != '':
+        plt.savefig(file_name+'.jpg', format='jpg')
+        plt.savefig(file_name+'.png', format='png')
     if show_plot: plt.show()
     plt.close()
     
@@ -239,7 +247,9 @@ def _fig_stress_compare_own(input_data, active_cells, percents, position, show_p
     
     ax.set_title(title)
     ax.axis('equal')
-    if file_name != '': plt.savefig(file_name)
+    if file_name != '':
+        plt.savefig(file_name+'.jpg', format='jpg')
+        plt.savefig(file_name+'.png', format='png')
     if show_plot: plt.show()
     plt.close()
 
@@ -250,7 +260,9 @@ def _fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, file_name=''
     ax.set_xlim(0, max_x)
     ax.set_ylim(0, max_y)
     ax.set_title(title)
-    if file_name != '': plt.savefig(file_name)
+    if file_name != '':
+        plt.savefig(file_name+'.jpg', format='jpg')
+        plt.savefig(file_name+'.png', format='png')
     if show_plot: plt.show()
     plt.close()
 
@@ -261,13 +273,15 @@ def _fig_stress_scatter(s_matrix, max_y, show_plot, title, file_name=''):
     ax.scatter(range(len(sort)), sort, s=5)
     ax.set_ylim(0, max_y)
     ax.set_title(title)
-    if file_name != '': plt.savefig(file_name)
+    if file_name != '':
+        plt.savefig(file_name+'.jpg', format='jpg')
+        plt.savefig(file_name+'.png', format='png')
     if show_plot: plt.show()
     plt.close()
     
 def _color_map(value, min_, max_, cmap_name='', nombre=256):
     if max_ == min_:
-        if max_ == 0: return 0,1,0 # no stress at all -> green
+        if max_ == 0: return 0,0,0 # no stress at all -> green
         else:         return 0,0,0 # max stress/height everywhere
 
     p = (value-min_)/(max_-min_)
@@ -277,8 +291,8 @@ def _color_map(value, min_, max_, cmap_name='', nombre=256):
     
     # default: linear red to green
     r = p #[RK] try some exponential values
-    g = 0.2
     b = 1-r
+    g = 0.4*b
     return r,g,b
 
 def _get_smatrix_min_max(curr_um, stress_type,
