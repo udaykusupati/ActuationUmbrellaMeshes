@@ -1,0 +1,27 @@
+
+
+
+
+TODO:
+- save model 3D
+
+
+- linear height functions
+
+-  vlines: chose bottom and top -> update cross
+
+
+
+
+deployment 1:
+linear from 0 to targets values (one per cell)
+
+deployment 2:
+linear from 0 to max value, once the max value of particular cell, it stops deploy
+       
+     
+Sopported format by plt.imgsave():
+eps, jpeg, jpg, pdf, pgf, png, ps, raw, rgba, svg, svgz, tif, tiff, webp
+
+
+        
