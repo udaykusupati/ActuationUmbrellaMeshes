@@ -153,10 +153,10 @@ def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, 
     max_stresses = []
     stresses_all_nz = stresses_per_steps[stresses_per_steps != 0]
     min_stress_all, max_stress_all = stresses_all_nz.min(), stresses_all_nz.max()
-    max_x, max_y = steps, stresses_all_nz.max()
+    max_x, max_y = steps, stresses_all_nz.max()+5
 
-    # folder to save images
-    dir_name = f'./images/{dir_name}'
+    # folder to save
+    dir_name = f'./{dir_name}'
     _create_dir(dir_name)
 
     src = np.array(input_data['umbrella_connectivity'])[:,0]
@@ -203,7 +203,7 @@ def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
 
 def _ax_arms_as_stress(ax, input_data, s_matrix, min_, max_, position):
     for i,j in input_data['umbrella_connectivity']:
-        c = _color_map(s_matrix[i,j], min_, max_, 'turbo')
+        c = _color_map(s_matrix[i,j], min_, max_, '') # turbo
         [x,y,_] = position[[i,j]].transpose()
         ax.plot(x, y, c=c)
 
@@ -258,7 +258,7 @@ def _fig_stress_scatter(s_matrix, max_y, show_plot, title, file_name=''):
     fig_size = 8
     _, ax = plt.subplots(figsize=(fig_size, fig_size))
     sort = np.flip(np.unique(s_matrix[s_matrix!=0]))
-    ax.scatter(range(len(sort)), sort, s=1)
+    ax.scatter(range(len(sort)), sort, s=5)
     ax.set_ylim(0, max_y)
     ax.set_title(title)
     if file_name != '': plt.savefig(file_name)
@@ -273,12 +273,12 @@ def _color_map(value, min_, max_, cmap_name='', nombre=256):
     p = (value-min_)/(max_-min_)
     if cmap_name!='':
         return colormaps[cmap_name].resampled(nombre).colors[int(p*(nombre-1))]
-        # do not work for 'jet' nor 'rgb' or others colormap (no attribute `colors`)
+        # do not work for 'jet' nor 'rgb, cool' or others colormap (no attribute `colors`)
     
     # default: linear red to green
     r = p #[RK] try some exponential values
-    g = 1-r
-    b = 0
+    g = 0.2
+    b = 1-r
     return r,g,b
 
 def _get_smatrix_min_max(curr_um, stress_type,
