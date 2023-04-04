@@ -15,6 +15,27 @@ from configuration import deploy_umbrella_pin_rigid_motion
 # ======================================================================
 # ============================================================ GENERAL =
 # ======================================================================
+
+def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_name):
+    path_name = 'outputs/'+category_name
+    if not os.path.exists(path_name): os.makedirs(path_name)
+    folder_name = f'{degree:0>2}_{rows:0>2}_{cols:0>2}_{deployment}_{folder_name}'
+    path_name += f'/{folder_name}'
+    
+    # folder to save gif, jpg, png and csv
+    _create_dir(path_name)
+    _create_dir(path_name+'/png/gif')
+    _create_dir(path_name+'/jpg/gif')
+    _create_dir(path_name+'/csv')
+    
+    return folder_name, path_name
+
+
+def _create_dir(name):
+    if not os.path.exists(name): os.makedirs(name)
+    else: raise ValueError(f'folder {name} already exists')
+
+
 def get_center_position(curr_um):
     nb_cell = curr_um.numUmbrellas()
     center_position = np.zeros([nb_cell, 3])
@@ -38,6 +59,39 @@ def percent_to_height(init_height, thickness, indexes, percents):
     return [((1-percent/100)*(init_height[idx]-thickness)+thickness)/thickness
             for percent,idx in zip(percents,indexes)]
 
+def linear_heights(a,b, step=1):
+    '''
+    from undeployed to deployed :
+    (0,4) -> [0,1,2,3,4],[100, 75, 50, 25, 0]
+    (4,0) -> [0,1,2,3,4],[0, 25, 50, 75, 100]
+    '''
+    active_cells    = []
+    target_percents = []
+    if b>a:
+        len_ = b-a
+        for i in range(0, step*len_+1,step):
+            active_cells.append(a+i)
+            target_percents.append(100*i/len_)
+    elif a>b:
+        len_ = a-b
+        for i in range(0, step*len_+1, step):
+            active_cells.append(step*len_+b-i)
+            target_percents.append(100*i/len_)
+
+    return active_cells, target_percents
+
+# def linear_ 
+### --> DECOMPOSE FUNCTION -> give lis to receive height (for diagonal)
+ 
+def linear_height_ls(ls):
+    max_ = max(ls)
+    min_ = min(ls)
+    percents = []
+    for idx in ls:
+        p = 100*(idx-min_)/(max_-min_)
+        percents.append(p)
+    return percents
+
 def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents,
                     steps=10, stress_type='maxBending', verbose=True, dep='linear'):
         dep_weights = set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
@@ -47,11 +101,12 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
         percents_per_steps = []
 
         for s in range(steps+1):
-            if dep=='linear': target_percents_step = [p*s/steps for p in target_percents]
-            if dep=='min': target_percents_step = [min(p, 100*s/steps) for p in target_percents]
-            if dep=='max':
+            if   dep=='linear': target_percents_step = [p*s/steps for p in target_percents]
+            elif dep=='min'   : target_percents_step = [min(p, 100*s/steps) for p in target_percents]
+            elif dep=='max':
                 max_p = max(target_percents)
                 target_percents_step = [min(p, max_p*s/steps) for p in target_percents]
+            else : raise ValueError(f'deployment unknown: {dep} (choises:\'linear\',\'min\',\'max\')')
             
             percents_per_steps.append(target_percents_step)
             target_heights = percent_to_height(init_heights, plate_thickness, active_cells, target_percents_step)
@@ -93,7 +148,7 @@ def plot3D_stress(curr_um, stress_type,
 
 # ------------------- 2D -------------------
 def plot2D(input_data, curr_um,
-           show_height=False, active_cells=[], target_percents=[]):
+           show_height=False, active_cells=[], target_percents=[], file_name=''):
     center_position = get_center_position(curr_um)
     vertices = input_data['base_mesh_v']
     edge     = np.roll(np.insert(input_data['base_mesh_f'], 0,
@@ -119,6 +174,8 @@ def plot2D(input_data, curr_um,
         ax.annotate(f'{i}', center_position[i][:2], ha='center', color=(r,1-r,0), weight='bold')
     # show plot
     ax.axis('equal')
+    if file_name != '':
+        plt.savefig(file_name)
     plt.show()
 
 def plot2D_stress(curr_um, input_data, init_center_pos,
@@ -132,7 +189,7 @@ def plot2D_stress(curr_um, input_data, init_center_pos,
     plt.show()
     
 def projection2D(input_data, curr_um,
-                 active_cells=[], target_percents=[]):
+                 active_cells=[], target_percents=[], file_name=''):
     center_position = get_center_position(curr_um)
     vertices = input_data['umbrella_connectivity']
     center_xy = np.array(list(zip(center_position[:,0], center_position[:,1])))
@@ -143,6 +200,8 @@ def projection2D(input_data, curr_um,
         ax.plot(s[:,0], s[:,1], c='black')
         _ax_dot_active_cell(ax, active_cells, target_percents, center_position)
     ax.axis('equal')
+    if file_name != '':
+        plt.savefig(file_name)
     plt.show()
     
     
@@ -155,17 +214,16 @@ def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, 
     min_stress_all, max_stress_all = stresses_all_nz.min(), stresses_all_nz.max()
     max_x, max_y = steps, stresses_all_nz.max()+5
 
-    # folder to save jpg and gif
-    dir_name = f'./{dir_name}'
-    _create_dir(dir_name)
-
     src = np.array(input_data['umbrella_connectivity'])[:,0]
     dst = np.array(input_data['umbrella_connectivity'])[:,1]
     max_stress_per_arm = stresses_per_steps.transpose()[src,dst].max(axis=1)
     
     title = '{:.0f}% deployed\n'+f'{stress_type}:'+' {:.2f}'
-    fig_saved_name = f'{dir_name}/{stress_type}_'+'{{}}_{:0>3.0f}Deployment'
-    
+    path_names = []
+    if dir_name == '': img_format = []
+    else:              img_format = ['jpg', 'png']
+    for f in img_format:
+        path_names.append(f'{dir_name}/{f}/{stress_type}_'+'{{}}_{:0>3.0f}Deployment'+f'.{f}')
     
     # random perturbations does affect undeployed state
     deployed = False
@@ -176,25 +234,27 @@ def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, 
         max_stresses.append(max_stress_step)
 
         title_s = title.format(s/steps*100, max_stress_step)
-        fig_saved_name_s = fig_saved_name.format(s/steps*100)
+        path_names_s = []
+        for path in path_names:
+            path_names_s.append(path.format(s/steps*100))
         
         # normalized with general extrems values
         _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
-                          s_matrix, deployed*min_stress_all, deployed*max_stress_all, show_plot, title_s, fig_saved_name_s.format('structure_all'))
+                          s_matrix, deployed*min_stress_all, deployed*max_stress_all, show_plot, title_s, path_names_s, 'structure_all')
         
         # normalized with step extrems values
         _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
-                          s_matrix, deployed*min_stress_step, deployed*max_stress_step, show_plot, title_s, fig_saved_name_s.format('structure_perSteps'))
+                          s_matrix, deployed*min_stress_step, deployed*max_stress_step, show_plot, title_s, path_names_s, 'structure_perSteps')
 
         # normalized with own extrems values
-        _fig_stress_compare_own(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, deployed*max_stress_per_arm, show_plot, title_s,
-                                fig_saved_name_s.format('structure_own'))
+        _fig_stress_compare_own(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, deployed*max_stress_per_arm, show_plot,
+                                title_s, path_names_s, 'structure_own')
         
         # ordered stresses
-        _fig_stress_scatter(deployed*s_matrix, max_y, show_plot, title_s, fig_saved_name_s.format('scatter'))
+        _fig_stress_scatter(deployed*s_matrix, max_y, show_plot, title_s, path_names_s, 'scatter')
         
         # stress curve
-        _fig_stress_curve(deployed*max_stresses, max_x, max_y, show_plot, title_s, fig_saved_name_s.format('sPlot'))
+        _fig_stress_curve(deployed*max_stresses, max_x, max_y, show_plot, title_s, path_names_s, 'sPlot')
         
         # perturbations do not affect deployed state
         deployed = True
@@ -222,19 +282,18 @@ def _ax_plot_stresses(ax, input_data, stress_matrix, min_, max_, active_cells, p
     _ax_dot_active_cell(ax, active_cells, percents, position)
     _ax_show_percent(ax, show_percent, active_cells, percents, position)
     
-def _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, file_name=''):
+def _fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, path_names, file_name=''):
     fig_size = 8
     _, ax = plt.subplots(figsize=(fig_size, fig_size))
     _ax_plot_stresses(ax, input_data, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
     ax.set_title(title)
     ax.axis('equal')
-    if file_name != '':
-        plt.savefig(file_name+'.jpg', format='jpg')
-        plt.savefig(file_name+'.png', format='png')
+    for path in path_names:
+        plt.savefig(path.format(file_name))
     if show_plot: plt.show()
     plt.close()
     
-def _fig_stress_compare_own(input_data, active_cells, percents, position, show_percent, s_matrix, max_ls, show_plot, title, file_name=''):
+def _fig_stress_compare_own(input_data, active_cells, percents, position, show_percent, s_matrix, max_ls, show_plot, title, path_names, file_name=''):
     fig_size = 8
     _, ax = plt.subplots(figsize=(fig_size, fig_size))
 
@@ -247,42 +306,39 @@ def _fig_stress_compare_own(input_data, active_cells, percents, position, show_p
     
     ax.set_title(title)
     ax.axis('equal')
-    if file_name != '':
-        plt.savefig(file_name+'.jpg', format='jpg')
-        plt.savefig(file_name+'.png', format='png')
+    for path in path_names:
+        plt.savefig(path.format(file_name))
     if show_plot: plt.show()
     plt.close()
 
-def _fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, file_name=''):
+def _fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, path_names, file_name=''):
     fig_size = 8
     _, ax = plt.subplots(figsize=(fig_size, fig_size))
     ax.plot(max_stresses)
     ax.set_xlim(0, max_x)
     ax.set_ylim(0, max_y)
     ax.set_title(title)
-    if file_name != '':
-        plt.savefig(file_name+'.jpg', format='jpg')
-        plt.savefig(file_name+'.png', format='png')
+    for path in path_names:
+        plt.savefig(path.format(file_name))
     if show_plot: plt.show()
     plt.close()
 
-def _fig_stress_scatter(s_matrix, max_y, show_plot, title, file_name=''):
+def _fig_stress_scatter(s_matrix, max_y, show_plot, title, path_names, file_name=''):
     fig_size = 8
     _, ax = plt.subplots(figsize=(fig_size, fig_size))
     sort = np.flip(np.unique(s_matrix[s_matrix!=0]))
     ax.scatter(range(len(sort)), sort, s=5)
     ax.set_ylim(0, max_y)
     ax.set_title(title)
-    if file_name != '':
-        plt.savefig(file_name+'.jpg', format='jpg')
-        plt.savefig(file_name+'.png', format='png')
+    for path in path_names:
+        plt.savefig(path.format(file_name))
     if show_plot: plt.show()
     plt.close()
     
 def _color_map(value, min_, max_, cmap_name='', nombre=256):
     if max_ == min_:
-        if max_ == 0: return 0,0,0 # no stress at all -> green
-        else:         return 0,0,0 # max stress/height everywhere
+        if max_ == 0: return 0,1,0.25 # no stress at all -> "green"
+        else:         return 0,0,0    # max stress/height everywhere
 
     p = (value-min_)/(max_-min_)
     if cmap_name!='':
@@ -291,8 +347,8 @@ def _color_map(value, min_, max_, cmap_name='', nombre=256):
     
     # default: linear red to green
     r = p #[RK] try some exponential values
-    b = 1-r
-    g = 0.4*b
+    g = 1-r
+    b = 0.25*g
     return r,g,b
 
 def _get_smatrix_min_max(curr_um, stress_type,
@@ -302,11 +358,6 @@ def _get_smatrix_min_max(curr_um, stress_type,
         tmp = matrix[np.nonzero(matrix)]
         return matrix, tmp.min(), tmp.max()
     return matrix, matrix.min(), matrix.max()
-
-def _create_dir(name):
-    if not os.path.exists(name): os.makedirs(name)
-    else: raise ValueError(f'folder {name} already exists')
-
 
 # ======================================================================
 # ============================================================ HELPERS =
@@ -353,3 +404,4 @@ def _get_stresses(curr_um,
     else:
         raise ValueError(f'the required stress type <{stress_type}> do not correspond to any available stress')
     return stresses
+            

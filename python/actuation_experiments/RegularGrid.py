@@ -7,7 +7,7 @@ from visualization_helper import get_color_field
 from pipeline_helper import allEnergies
 sys.path.append('../UmbrellaGen')
 from grid_gen import genUmbrellaWithHeights
-class UmbrellaGrid:
+class RegularGrid:
     def __init__(self, degree=3, rows=2, cols=2, height_fct=None, min_height=64):
         assert degree==3 or degree==4 or degree==6, f'degree is {degree}, but is should either be 3, 4 or 6'
         if degree==4 and (rows<2 or cols<2):
@@ -70,10 +70,12 @@ class UmbrellaGrid:
             if self.rows==1:
                 return [0, step-1]
             if self.cols==1:
-                return [0, 2*self.rows-1]
+                if self.rows%2==0:return [0, 2*self.rows]
+                else:             return [0, 2*self.rows-1]
             
         if self.degree==4: # can't have unitary cols/rows
             step = self.cols
+
         bot_left  = 0
         bot_right = step-1
         top_left  = step*(self.rows-1)
