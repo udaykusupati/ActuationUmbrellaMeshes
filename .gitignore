@@ -11,3 +11,6 @@ python/MeshFEM
 
 # results images
 python/actuation_experiments/images/
+
+# `json.gz` files
+python/UmbrellaGen/
