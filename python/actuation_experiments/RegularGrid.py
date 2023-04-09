@@ -70,7 +70,7 @@ class RegularGrid:
             if self.rows==1:
                 return [0, step-1]
             if self.cols==1:
-                if self.rows%2==0:return [0, 2*self.rows]
+                if self.rows%2==0:return [0, 2*(self.rows-1)]
                 else:             return [0, 2*self.rows-1]
             
         if self.degree==4: # can't have unitary cols/rows
@@ -122,7 +122,7 @@ class RegularGrid:
     def cross(self, length=0):
         # raise Error is incorect value
         cross = [] # should we get `larger` as parameter ?
-        center = self.center_cells()
+        center = self.center()
         for l in range(length):
             for i,c in enumerate(center):
                 if self.degree==4:

@@ -83,13 +83,21 @@ def linear_heights(a,b, step=1):
 # def linear_ 
 ### --> DECOMPOSE FUNCTION -> give lis to receive height (for diagonal)
  
-def linear_height_ls(ls):
+def linear_height_ls_idx(ls, min_dep=0, max_dep=100):
     max_ = max(ls)
     min_ = min(ls)
     percents = []
     for idx in ls:
-        p = 100*(idx-min_)/(max_-min_)
-        percents.append(p)
+        p = (idx-min_)/(max_-min_)
+        percents.append(min_dep+p*max_dep)
+    return percents
+
+def linear_height_ls(ls, min_dep=0, max_dep=100):
+    len_ = len(ls)
+    percents = []
+    for idx in range(len_):
+        p = idx/(len_-1)
+        percents.append(min_dep+p*max_dep)
     return percents
 
 def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents,
