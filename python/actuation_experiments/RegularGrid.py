@@ -1,12 +1,15 @@
 import sys
 import numpy as np
-from helpers import set_actives_dep_weights, set_target_height, percent_to_height, get_center_position
+
 sys.path.append('..')
 from configuration import parse_input, deploy_umbrella_pin_rigid_motion
 from visualization_helper import get_color_field
 from pipeline_helper import allEnergies
 sys.path.append('../UmbrellaGen')
 from grid_gen import genUmbrellaWithHeights
+
+import helpers_grid as help
+
 class RegularGrid:
     def __init__(self, degree=3, rows=2, cols=2, height_fct=None, min_height=64):
         assert degree==3 or degree==4 or degree==6, f'degree is {degree}, but is should either be 3, 4 or 6'
@@ -35,7 +38,7 @@ class RegularGrid:
                                                                 use_target_surface = False)
         self.init_heights    = self.curr_um.umbrellaHeights
         self.plate_thickness = self.input_data['thickness']
-        self.init_center_pos = get_center_position(self.curr_um)
+        self.init_center_pos = help.get_center_position(self.curr_um)
         
         if verbose:
             print(f"PLATE CHARACTERISTIQUES:\n\
@@ -43,9 +46,9 @@ class RegularGrid:
 \tplate edge length : {self.input_data['plate_edge_length']:.6f}")
     
     def deploy(self, active_cells, target_percents, view=None, rod_colors=None, uidBased=False, verbose=True, show_plots=False):
-        dep_weights              = set_actives_dep_weights(self.numUmbrellas, active_cells)
-        target_heights           = percent_to_height(self.init_heights, self.plate_thickness, active_cells, target_percents)
-        target_height_multiplier = set_target_height(self.numUmbrellas, active_cells, target_heights)
+        dep_weights              = help.set_actives_dep_weights(self.numUmbrellas, active_cells)
+        target_heights           = help.percent_to_height(self.init_heights, self.plate_thickness, active_cells, target_percents)
+        target_height_multiplier = help.set_target_height(self.numUmbrellas, active_cells, target_heights)
         if rod_colors is None:
             rod_colors = get_color_field(self.curr_um, self.input_data, uidBased)
         success, eqays = deploy_umbrella_pin_rigid_motion(self.curr_um,
@@ -135,9 +138,9 @@ class RegularGrid:
                     cross.extend([a, b]) # vertical
         return list(np.unique(np.array(cross)))
     
-    # =====
-    # Helpers
-    # =====
+# ----------------------------------------------------------------------
+# ------------------------------------------------------------ helpers -
+# ----------------------------------------------------------------------
     def _get_num_cells(self):
         if self.degree == 3:
             return self.rows*(self.cols*2)
@@ -154,7 +157,7 @@ class RegularGrid:
         
     # V-line
     def _vline(self, i, msg, step=1):
-        if i > step*self.cols-1: raise ValueError(e_msg.format(step*self.cols-1))
+        if i > step*self.cols-1: raise ValueError(msg.format(step*self.cols-1))
         line = []
         for j in range(self.rows):
             line+=[i+j*step*self.cols]
