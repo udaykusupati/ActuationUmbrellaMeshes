@@ -24,7 +24,7 @@ class RegularGrid:
         self.min_height      = min_height
         self.height_scales   = height_fct(self.numUmbrellas) if height_fct is not None else [1]*self.numUmbrellas
     
-    def generate_mesh(self, json_filename, verbose=True):
+    def generate_mesh(self, json_filename='testing', verbose=True):
         genUmbrellaWithHeights(self.degree,
                                self.rows,
                                self.cols,

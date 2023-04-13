@@ -11,7 +11,7 @@ import helpers_plots as help
 import helpers_tools as help_tools
 import helpers_grid  as help_grid
 
-FIG_SIZE = 5
+FIG_SIZE = 3
 
 # ======================================================================
 # ================================================================= 3D =
@@ -50,18 +50,19 @@ def plot2D(input_data, curr_um,
     help.ax_annotate_active(ax, active_cells, target_percents, center_position)
 
     ax.axis('equal')
+    plt.axis('off')
     # show plot
     if file_name != '':
         plt.savefig(file_name)
     plt.show()
 
-def plot2D_stress(curr_um, input_data, init_center_pos,
+def plot2D_stress(curr_um, connectivity, init_center_pos,
                   active_cells=[], target_percents=[], stress_type='maxBending',
                   zero_as_extrem = False, show_percent=False):
     
     stress_matrix, min_, max_ = help_tools.get_smatrix_min_max(curr_um, stress_type, zero_as_extrem)
     ax = help.get_ax(FIG_SIZE)
-    help.ax_plot_stresses(ax, input_data, stress_matrix, min_, max_, active_cells, target_percents, init_center_pos, show_percent)
+    help.ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, target_percents, init_center_pos, show_percent)
 
     ax.axis('equal')
     plt.show()
@@ -76,8 +77,11 @@ def projection2D(input_data, curr_um,
         plt.savefig(file_name)
     plt.show()
     
-    
-def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, stresses_per_steps,
+# ======================================================================
+# ======================================================== SAVE IMAGES =
+# ======================================================================
+
+def plot2D_steps(connectivity, active_cells, percents_per_steps, init_center_pos, stresses_per_steps,
                  stress_type='maxBending', dir_name='00_test',
                  show_percent=False, show_plot=True):
     steps = stresses_per_steps.shape[0]-1
@@ -86,8 +90,8 @@ def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, 
     min_stress_all, max_stress_all = stresses_all_nz.min(), stresses_all_nz.max()
     max_x, max_y = steps, 1.05*stresses_all_nz.max()
 
-    src = np.array(input_data['umbrella_connectivity'])[:,0]
-    dst = np.array(input_data['umbrella_connectivity'])[:,1]
+    src = np.array(connectivity)[:,0]
+    dst = np.array(connectivity)[:,1]
     max_stress_per_arm = stresses_per_steps.transpose()[src,dst].max(axis=1)
     
     title = '{:.0f}% deployed\n'+f'{stress_type}:'+' {:.2f}'
@@ -111,15 +115,15 @@ def plot2D_steps(input_data, active_cells, percents_per_steps, init_center_pos, 
             path_names_s.append(path.format(s/steps*100))
         
         # normalized with general extrems values
-        help.fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
+        help.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
                               s_matrix, deployed*min_stress_all, deployed*max_stress_all, show_plot, title_s, path_names_s, 'structure_all')
         
         # normalized with step extrems values
-        help.fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
+        help.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
                               s_matrix, deployed*min_stress_step, deployed*max_stress_step, show_plot, title_s, path_names_s, 'structure_perSteps')
 
         # normalized with own extrems values
-        help.fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent,
+        help.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
                               s_matrix, 0, deployed*max_stress_per_arm, show_plot, title_s, path_names_s, 'structure_own')
         
         # ordered stresses

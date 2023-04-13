@@ -27,6 +27,16 @@ def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_n
     
     return folder_name, path_name
 
+def write_metadata(path, degree, rows, cols, deployment, steps, active_cells, target_percents):
+    with open(path+"/meta_data.txt", "w") as f:
+        f.write("Degree: " + str(degree) + '\n')
+        f.write("Rows  : " + str(rows)   + '\n')
+        f.write("Cols  : " + str(cols)   + '\n')
+        f.write("Deployment : " + str(deployment) + '\n')
+        f.write("Steps      : " + str(steps)      + '\n')
+        f.write("Active Cells    : " + str(active_cells)    + '\n')
+        f.write("Target Percents : " + str(target_percents))
+
 def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents, path_name,
                     steps=10, stress_type='maxBending', verbose=True, dep='linear'):
         dep_weights = help_grid.set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
@@ -34,7 +44,8 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
         # deployent in steps
         stresses_per_steps = np.zeros((steps+1, curr_um.numUmbrellas(), curr_um.numUmbrellas())) # 1st step is deployment 0%
         percents_per_steps = []
-        heights = []
+        heights            = []
+        # positions          = []
 
         path = path_name+'/results'
         path_stresses = path+'/stresses'
@@ -44,7 +55,8 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
         with open(path+'/connectivity.csv',"w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(input_data['umbrella_connectivity'])
-        # write initial_position
+            
+        # write initial position
         with open(path+'/position.csv',"w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(help_grid.get_center_position(curr_um))
@@ -57,7 +69,6 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
                 target_percents_step = [min(p, max_p*s/steps) for p in target_percents]
             else : raise ValueError(f'deployment unknown: {dep} (choises:\'linear\',\'min\',\'max\')')
             
-            print('target %: ', target_percents_step)
             percents_per_steps.append(target_percents_step)
             target_heights = help_grid.percent_to_height(init_heights, plate_thickness, active_cells, target_percents_step)
             target_height_multiplier = help_grid.set_target_height(curr_um.numUmbrellas(), active_cells, target_heights)
@@ -68,14 +79,14 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
             if success:
                 stresses_per_steps[s] = help.get_max_stress_matrix(curr_um, stress_type)
                 heights.append(curr_um.umbrellaHeights)
+                # positions.append(help_grid.get_center_position(curr_um))
                 # write resuts
                 with open(path_stresses+f'/{s:0>2}.csv',"w", newline='') as csvfile:
                     writer = csv.writer(csvfile)
                     writer.writerows(stresses_per_steps[s])
-
-                if verbose: print(f'step {s: >2}/{steps} saved.')
+                    if verbose: print(f'step {s: >2}/{steps} saved.')
+                
             else: raise ValueError(f'did not converge at step {s}.')
-
 
         # write heights
         with open(path+'/heights.csv',"w", newline='') as csvfile:
@@ -93,17 +104,25 @@ def read_results(path_name):
     path = path_name+'/results'
     path_stresses = path+'/stresses'
 
-    connectivity = [[int(i), int(j)] for [i,j] in _read_csv(path+'/connectivity.csv')]
-    position     = _read_csv(path+'/position.csv')
+    connectivity  = [[int(i), int(j)] for [i,j] in _read_csv(path+'/connectivity.csv')]
+    init_position = _read_csv(path+'/position.csv')
 
     heights  = _read_csv(path+'/heights.csv')
-    percents = _read_csv(path+'/percents.csv')
+    actuation = _read_csv(path+'/percents.csv')
+    # format data:
+    active_cells = [int(c) for c in actuation[0]] # 1st line is the activated cells indexes[0]
+    percents_per_steps = actuation[1:]
 
     stresses = []
     for i in range(len(heights)):
         stresses.append(_read_csv(path_stresses+f'/{i:0>2}.csv'))
 
-    return connectivity, position, heights, percents, stresses
+    return connectivity,\
+           np.array(init_position),\
+           heights,\
+           active_cells,\
+           percents_per_steps,\
+           np.array(stresses)
 
 def linear_heights(a,b, step=1):
     '''

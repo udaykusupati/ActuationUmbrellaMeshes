@@ -26,8 +26,8 @@ def ax_annotate_active(ax, active_cells, target_percents, center_position):
         r = p/100
         ax.annotate(f'{i}', center_position[i][:2], ha='center', color=(r,1-r,0), weight='bold')
 
-def ax_plot_stresses(ax, input_data, stress_matrix, min_, max_, active_cells, percents, position, show_percent):
-    _ax_arms_as_stress(ax, input_data, stress_matrix, min_, max_, position)
+def ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, percents, position, show_percent):
+    _ax_arms_as_stress(ax, connectivity, stress_matrix, min_, max_, position)
     _ax_dot_active_cell(ax, active_cells, percents, position)
     _ax_show_percent(ax, show_percent, active_cells, percents, position)
 
@@ -37,9 +37,9 @@ def ax_proj2D(ax, input_data, active_cells, percents, position):
         ax.plot(arm[:,0], arm[:,1], c='black')#, linewidth=8)
         _ax_dot_active_cell(ax, active_cells, percents, position)
 
-def fig_arm_stresses(input_data, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, path_names, file_name=''):
+def fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, path_names, file_name=''):
     ax = get_ax()
-    ax_plot_stresses(ax, input_data, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
+    ax_plot_stresses(ax, connectivity, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
     ax.set_title(title)
     ax.axis('equal')
     for path in path_names:
@@ -69,7 +69,7 @@ def fig_stress_scatter(s_matrix, max_y, show_plot, title, path_names, file_name=
     if show_plot: plt.show()
     plt.close()
 
-def get_ax(fig_size=3, dpi=600):
+def get_ax(fig_size=3, dpi=8*72):
     _, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=dpi)
     if fig_size == 3: # is_default
         plt.rcParams.update({'font.size': 5})
@@ -79,18 +79,21 @@ def get_ax(fig_size=3, dpi=600):
 # ------------------------------------------------------------ helpers -
 # ----------------------------------------------------------------------
 def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
+    s = plt.rcParams['lines.markersize'] ** 1.4 # default s value is `rcParams['lines.markersize'] ** 2`
+    lw = s/15 # width of marker's edge
     for i, p in zip(active_cells, target_percents):
         r = p/100
         [x,y,_] = positions[i]
-        ax.scatter(x,y, color=(r,1-r,0), zorder=2.5) # default for plot is 2 (higher means more on top)
+        ax.scatter(x,y, color=(r,1-r,0), s=s, zorder=2.5, edgecolors='white', linewidths=lw) # default zorder for plot is 2 (higher means more on top)
+        
 
-def _ax_arms_as_stress(ax, input_data, s_matrix, min_, max_, position):
-    arms_pos = _get_arms_pos(input_data, position)
-    colors = _get_arms_color(input_data, s_matrix, min_, max_)
+def _ax_arms_as_stress(ax, connectivity, s_matrix, min_, max_, position):
+    arms_pos = _get_arms_pos(connectivity, position)
+    colors = _get_arms_color(connectivity, s_matrix, min_, max_)
     for arm,c in zip(arms_pos, colors):
         ax.plot(arm[:,0], arm[:,1], c=c)#, linewidth=8)
 
-def _ax_show_percent(ax, show_percent, active_cells, target_percents, position): #### HERER : Add ax as param, change in experience function (steps)
+def _ax_show_percent(ax, show_percent, active_cells, target_percents, position):
     for i, p in zip(active_cells*show_percent, target_percents):
         ax.annotate(f'{p: >5.0f}', position[i][:2], ha='left', va='center', color='black')
 
@@ -101,18 +104,17 @@ def _get_edges(input_data):
                        -1, axis=1)
     return vertices[edge]
 
-def _get_arms_pos(input_data, position):
-    vertices = input_data['umbrella_connectivity']
+def _get_arms_pos(connectivity, position):
     center_xy = np.array(list(zip(position[:,0], position[:,1])))
-    arms_pos = center_xy[vertices]
+    arms_pos = center_xy[connectivity]
     return arms_pos
 
-def _get_arms_color(input_data, s_matrix, min_, max_):
+def _get_arms_color(connectivity, s_matrix, min_, max_):
     try: # chek if max_ is float or not:
         int(max_)
-        return [_color_map(s_matrix[i,j], min_, max_, cmap_name='') for i,j in input_data['umbrella_connectivity']]
+        return [_color_map(s_matrix[i,j], min_, max_, cmap_name='') for i,j in connectivity]
     except TypeError: # it is not
-        return [_color_map(s_matrix[i,j], 0, max_[arm]) for arm,(i,j) in enumerate(input_data['umbrella_connectivity'])]
+        return [_color_map(s_matrix[i,j], 0, max_[arm]) for arm,(i,j) in enumerate(connectivity)]
 
 def _color_map(value, min_, max_, cmap_name='', nombre=256):
     if max_ == min_:
