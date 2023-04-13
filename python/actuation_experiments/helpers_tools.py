@@ -63,4 +63,3 @@ def set_plate_stress_null(curr_um,
         if seg.segmentType() == umbrella_mesh.SegmentType.Plate:
             stresses[sid] = 0
     return stresses.tolist()
-

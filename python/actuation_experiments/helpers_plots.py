@@ -2,8 +2,6 @@ import numpy as np
 from matplotlib import colormaps
 import matplotlib.pyplot as plt
 
-import helpers_grid as help_grid
-
 # ======================================================================
 # ============================================================== PLOTS =
 # ======================================================================
@@ -31,8 +29,8 @@ def ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, 
     _ax_dot_active_cell(ax, active_cells, percents, position)
     _ax_show_percent(ax, show_percent, active_cells, percents, position)
 
-def ax_proj2D(ax, input_data, active_cells, percents, position):
-    arms_pos = _get_arms_pos(input_data, position)
+def ax_proj2D(ax, connectivity, active_cells, percents, position):
+    arms_pos = _get_arms_pos(connectivity, position)
     for arm in arms_pos:
         ax.plot(arm[:,0], arm[:,1], c='black')#, linewidth=8)
         _ax_dot_active_cell(ax, active_cells, percents, position)
@@ -42,6 +40,7 @@ def fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show
     ax_plot_stresses(ax, connectivity, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
     ax.set_title(title)
     ax.axis('equal')
+    plt.axis('off')
     for path in path_names:
         plt.savefig(path.format(file_name))
     if show_plot: plt.show()
@@ -58,10 +57,11 @@ def fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, path_names, f
     if show_plot: plt.show()
     plt.close()
 
-def fig_stress_scatter(s_matrix, max_y, show_plot, title, path_names, file_name=''):
+def fig_stress_scatter(connectivity, s_matrix, max_y, show_plot, title, path_names, file_name='', ordered=True):
     ax = get_ax()
-    sort = np.flip(np.unique(s_matrix[s_matrix!=0]))
-    ax.scatter(range(len(sort)), sort, s=5)
+    c = np.array(connectivity)
+    stresses = np.flip(np.sort(s_matrix[c[:,0], c[:,1]])) if ordered else s_matrix[c[:,0], c[:,1]]
+    ax.scatter(range(len(stresses)), stresses, s=5)
     ax.set_ylim(0, max_y)
     ax.set_title(title)
     for path in path_names:
@@ -69,6 +69,7 @@ def fig_stress_scatter(s_matrix, max_y, show_plot, title, path_names, file_name=
     if show_plot: plt.show()
     plt.close()
 
+    
 def get_ax(fig_size=3, dpi=8*72):
     _, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=dpi)
     if fig_size == 3: # is_default
@@ -86,7 +87,6 @@ def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
         [x,y,_] = positions[i]
         ax.scatter(x,y, color=(r,1-r,0), s=s, zorder=2.5, edgecolors='white', linewidths=lw) # default zorder for plot is 2 (higher means more on top)
         
-
 def _ax_arms_as_stress(ax, connectivity, s_matrix, min_, max_, position):
     arms_pos = _get_arms_pos(connectivity, position)
     colors = _get_arms_color(connectivity, s_matrix, min_, max_)

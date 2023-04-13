@@ -6,7 +6,7 @@ import os
 sys.path.append('..')
 from configuration import deploy_umbrella_pin_rigid_motion
 
-import helpers_tools as help
+import helpers_tools as help_
 import helpers_grid as help_grid
 
 # ======================================================================
@@ -20,22 +20,34 @@ def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_n
     path_name += f'/{folder_name}'
     
     # folder to save gif, jpg, png and csv
-    help.create_dir(path_name)
-    help.create_dir(path_name+'/png/gif')
-    help.create_dir(path_name+'/jpg/gif')
-    help.create_dir(path_name+'/results')
+    help_.create_dir(path_name)
+    help_.create_dir(path_name+'/png/gif')
+    help_.create_dir(path_name+'/jpg/gif')
+    help_.create_dir(path_name+'/results')
     
     return folder_name, path_name
 
 def write_metadata(path, degree, rows, cols, deployment, steps, active_cells, target_percents):
-    with open(path+"/meta_data.txt", "w") as f:
+    with open(path+"/metadata.txt", "w") as f:
         f.write("Degree: " + str(degree) + '\n')
         f.write("Rows  : " + str(rows)   + '\n')
         f.write("Cols  : " + str(cols)   + '\n')
         f.write("Deployment : " + str(deployment) + '\n')
         f.write("Steps      : " + str(steps)      + '\n')
         f.write("Active Cells    : " + str(active_cells)    + '\n')
-        f.write("Target Percents : " + str(target_percents))
+        f.write("Target Percents : " + str(target_percents) + '\n')
+
+def read_metadata(path):
+    with open(path+"/metadata.txt") as f:
+        metadata = f.read().splitlines()
+    degree = int(metadata[0][8:])
+    rows = int(metadata[1][8:])
+    cols = int(metadata[2][8:])
+    deployment = metadata[3][13:].strip()
+    steps = int(metadata[4][13:])
+    active_cells = eval(metadata[5][18:])
+    target_percents = eval(metadata[6][18:])
+    return degree, rows, cols, deployment, steps, active_cells, target_percents
 
 def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents, path_name,
                     steps=10, stress_type='maxBending', verbose=True, dep='linear'):
@@ -49,7 +61,7 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
 
         path = path_name+'/results'
         path_stresses = path+'/stresses'
-        help.create_dir(path_stresses)
+        help_.create_dir(path_stresses)
 
         # write connectivity
         with open(path+'/connectivity.csv',"w", newline='') as csvfile:
@@ -77,7 +89,7 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
                                                           target_height_multiplier,
                                                           dep_weights=dep_weights)
             if success:
-                stresses_per_steps[s] = help.get_max_stress_matrix(curr_um, stress_type)
+                stresses_per_steps[s] = help_.get_max_stress_matrix(curr_um, stress_type)
                 heights.append(curr_um.umbrellaHeights)
                 # positions.append(help_grid.get_center_position(curr_um))
                 # write resuts
@@ -124,6 +136,22 @@ def read_results(path_name):
            percents_per_steps,\
            np.array(stresses)
 
+
+
+def get_indexes(degree, rows, cols):
+    if degree==3:
+        indexes = []
+        for r in range(rows):
+            for c in range(r*2*cols, (r+1)*2*cols, 2):
+                if r%2 == 0:
+                    indexes.extend([c, c+1])
+                else:
+                    indexes.extend([c+1, c])
+        return indexes
+    
+    if degree==4:
+        return list(range(rows*cols))
+
 def linear_heights(a,b, step=1):
     '''
     from undeployed to deployed :
@@ -166,6 +194,10 @@ def linear_height_ls(ls, min_dep=0, max_dep=100):
     return percents
 
 
+
+# ----------------------------------------------------------------------
+# ------------------------------------------------------------ helpers -
+# ----------------------------------------------------------------------
 def _read_csv(path):
     out = []
     with open(path,"r", newline='') as csvfile:
