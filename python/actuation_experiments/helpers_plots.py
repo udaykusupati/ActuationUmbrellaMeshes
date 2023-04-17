@@ -5,46 +5,35 @@ import matplotlib.pyplot as plt
 # ======================================================================
 # ============================================================== PLOTS =
 # ======================================================================
+def ax_annotate_index(ax, center_positions):
+    for i, [x,y,z] in enumerate(center_positions):
+        ax.annotate(f'{i}', (x,y), ha='center', color='black')
+
+def ax_annotate_height(ax, curr_um, center_positions):
+    um_heights = curr_um.umbrellaHeights
+    for [x,y,z], h in zip(center_positions, um_heights):
+        c = _color_map(h, min(um_heights), max(um_heights))
+        ax.annotate(f'[{h:.2f}]', (x,y), textcoords='offset points', xytext=(0,-12), ha='center', c=c)
+
+def ax_annotate_active(ax, active_cells, target_percents, center_positions):
+    for i, p in zip(active_cells, target_percents):
+        r = p/100
+        ax.annotate(f'{i}', center_positions[i][:2], ha='center', color=(r,1-r,0), weight='bold')
+
 def ax_plot_edges(ax, input_data):
     for e in _get_edges(input_data):
         ax.plot(e[:, 0], e[:, 1], color="lightblue")
 
-def ax_annotate_index(ax, center_position):
-    for i, [x,y,z] in enumerate(center_position):
-        ax.annotate(f'{i}', (x,y), ha='center', color='black')
+def ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, percents, positions, show_percent):
+    _ax_arms_as_stress(ax, connectivity, stress_matrix, min_, max_, positions)
+    _ax_dot_active_cell(ax, active_cells, percents, positions)
+    _ax_show_percent(ax, show_percent, active_cells, percents, positions)
 
-def ax_annotate_height(ax, curr_um, center_position):
-    um_heights = curr_um.umbrellaHeights
-    for [x,y,z], h in zip(center_position, um_heights):
-        c = _color_map(h, min(um_heights), max(um_heights))
-        ax.annotate(f'[{h:.2f}]', (x,y), textcoords='offset points', xytext=(0,-12), ha='center', c=c)
-
-def ax_annotate_active(ax, active_cells, target_percents, center_position):
-    for i, p in zip(active_cells, target_percents):
-        r = p/100
-        ax.annotate(f'{i}', center_position[i][:2], ha='center', color=(r,1-r,0), weight='bold')
-
-def ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, percents, position, show_percent):
-    _ax_arms_as_stress(ax, connectivity, stress_matrix, min_, max_, position)
-    _ax_dot_active_cell(ax, active_cells, percents, position)
-    _ax_show_percent(ax, show_percent, active_cells, percents, position)
-
-def ax_proj2D(ax, connectivity, active_cells, percents, position):
-    arms_pos = _get_arms_pos(connectivity, position)
+def ax_proj2D(ax, connectivity, active_cells, percents, positions):
+    arms_pos = _get_arms_pos(connectivity, positions)
     for arm in arms_pos:
         ax.plot(arm[:,0], arm[:,1], c='black')#, linewidth=8)
-        _ax_dot_active_cell(ax, active_cells, percents, position)
-
-def fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, path_names, file_name=''):
-    ax = get_ax()
-    ax_plot_stresses(ax, connectivity, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
-    ax.set_title(title)
-    ax.axis('equal')
-    plt.axis('off')
-    for path in path_names:
-        plt.savefig(path.format(file_name))
-    if show_plot: plt.show()
-    plt.close()
+        _ax_dot_active_cell(ax, active_cells, percents, positions)
 
 def fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, path_names, file_name=''):
     ax = get_ax()
@@ -68,6 +57,18 @@ def fig_stress_scatter(connectivity, s_matrix, max_y, show_plot, title, path_nam
         plt.savefig(path.format(file_name))
     if show_plot: plt.show()
     plt.close()
+    
+
+def fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, path_names, file_name=''):
+    ax = get_ax()
+    ax_plot_stresses(ax, connectivity, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
+    ax.set_title(title)
+    ax.axis('equal')
+    plt.axis('off')
+    for path in path_names:
+        plt.savefig(path.format(file_name))
+    if show_plot: plt.show()
+    plt.close()
 
     
 def get_ax(fig_size=3, dpi=8*72):
@@ -87,15 +88,15 @@ def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
         [x,y,_] = positions[i]
         ax.scatter(x,y, color=(r,1-r,0), s=s, zorder=2.5, edgecolors='white', linewidths=lw) # default zorder for plot is 2 (higher means more on top)
         
-def _ax_arms_as_stress(ax, connectivity, s_matrix, min_, max_, position):
-    arms_pos = _get_arms_pos(connectivity, position)
+def _ax_arms_as_stress(ax, connectivity, s_matrix, min_, max_, positions):
+    arms_pos = _get_arms_pos(connectivity, positions)
     colors = _get_arms_color(connectivity, s_matrix, min_, max_)
     for arm,c in zip(arms_pos, colors):
         ax.plot(arm[:,0], arm[:,1], c=c)#, linewidth=8)
 
-def _ax_show_percent(ax, show_percent, active_cells, target_percents, position):
+def _ax_show_percent(ax, show_percent, active_cells, target_percents, positions):
     for i, p in zip(active_cells*show_percent, target_percents):
-        ax.annotate(f'{p: >5.0f}', position[i][:2], ha='left', va='center', color='black')
+        ax.annotate(f'{p: >5.0f}', positions[i][:2], ha='left', va='center', color='black')
 
 def _get_edges(input_data):
     vertices = input_data['base_mesh_v']
@@ -104,8 +105,8 @@ def _get_edges(input_data):
                        -1, axis=1)
     return vertices[edge]
 
-def _get_arms_pos(connectivity, position):
-    center_xy = np.array(list(zip(position[:,0], position[:,1])))
+def _get_arms_pos(connectivity, positions):
+    center_xy = np.array(list(zip(positions[:,0], positions[:,1])))
     arms_pos = center_xy[connectivity]
     return arms_pos
 

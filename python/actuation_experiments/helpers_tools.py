@@ -50,7 +50,7 @@ def get_smatrix_min_max(curr_um, stress_type,
                          zero_as_extrem=False):
     matrix = get_max_stress_matrix(curr_um, stress_type)
     if not zero_as_extrem:
-        tmp = matrix[np.nonzero(matrix)]
+        tmp = matrix[matrix != 0]
         return matrix, tmp.min(), tmp.max()
     return matrix, matrix.min(), matrix.max()
 

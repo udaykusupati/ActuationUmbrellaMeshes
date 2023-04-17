@@ -46,7 +46,7 @@ def plot2D(input_data, curr_um,
     ax = help_.get_ax(FIG_SIZE)
     help_.ax_plot_edges(ax, input_data)
     help_.ax_annotate_index(ax, center_position)
-    help_.ax_annotate_height(ax, curr_um, show_height*center_position)
+    if show_height: help_.ax_annotate_height(ax, curr_um, center_position)
     help_.ax_annotate_active(ax, active_cells, target_percents, center_position)
 
     ax.axis('equal')
@@ -65,6 +65,7 @@ def plot2D_stress(curr_um, connectivity, init_center_pos,
     help_.ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, target_percents, init_center_pos, show_percent)
 
     ax.axis('equal')
+    plt.axis('off')
     plt.show()
     
 def projection2D(connectivity, curr_um,
@@ -72,7 +73,9 @@ def projection2D(connectivity, curr_um,
     center_position = help_grid.get_center_position(curr_um)
     ax = help_.get_ax(FIG_SIZE)
     help_.ax_proj2D(ax, connectivity, active_cells, target_percents, center_position)
+    
     ax.axis('equal')
+    plt.axis('off')
     if file_name != '':
         plt.savefig(file_name)
     plt.show()
@@ -106,7 +109,6 @@ def plot1D_steps(connectivity, active_cells, percents_per_steps, init_center_pos
         for path in path_names:
             path_names_s.append(path.format(s/steps*100))
         
-        # ordered stresses
         help_.fig_stress_scatter(connectivity, deployed*s_matrix, max_y, show_plot, title_s.format('stress'), path_names_s, 'scatter', ordered=False)
         
         # perturbations do not affect deployed state
