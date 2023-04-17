@@ -5,20 +5,20 @@ import matplotlib.pyplot as plt
 # ======================================================================
 # ============================================================== PLOTS =
 # ======================================================================
-def ax_annotate_index(ax, center_positions):
-    for i, [x,y,z] in enumerate(center_positions):
+def ax_annotate_index(ax, positions):
+    for i, [x,y,z] in enumerate(positions):
         ax.annotate(f'{i}', (x,y), ha='center', color='black')
 
-def ax_annotate_height(ax, curr_um, center_positions):
+def ax_annotate_height(ax, curr_um, positions):
     um_heights = curr_um.umbrellaHeights
-    for [x,y,z], h in zip(center_positions, um_heights):
+    for [x,y,z], h in zip(positions, um_heights):
         c = _color_map(h, min(um_heights), max(um_heights))
         ax.annotate(f'[{h:.2f}]', (x,y), textcoords='offset points', xytext=(0,-12), ha='center', c=c)
 
-def ax_annotate_active(ax, active_cells, target_percents, center_positions):
+def ax_annotate_active(ax, active_cells, target_percents, positions):
     for i, p in zip(active_cells, target_percents):
         r = p/100
-        ax.annotate(f'{i}', center_positions[i][:2], ha='center', color=(r,1-r,0), weight='bold')
+        ax.annotate(f'{i}', positions[i][:2], ha='center', color=(r,1-r,0), weight='bold')
 
 def ax_plot_edges(ax, input_data):
     for e in _get_edges(input_data):
@@ -35,16 +35,57 @@ def ax_proj2D(ax, connectivity, active_cells, percents, positions):
         ax.plot(arm[:,0], arm[:,1], c='black')#, linewidth=8)
         _ax_dot_active_cell(ax, active_cells, percents, positions)
 
-def fig_stress_curve(max_stresses, max_x, max_y, show_plot, title, path_names, file_name=''):
+def fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, path_names, file_name=''):
     ax = get_ax()
-    ax.plot(max_stresses)
-    ax.set_xlim(0, max_x)
-    ax.set_ylim(0, max_y)
+    ax_plot_stresses(ax, connectivity, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
     ax.set_title(title)
+    ax.axis('equal')
+    plt.axis('off')
     for path in path_names:
         plt.savefig(path.format(file_name))
     if show_plot: plt.show()
     plt.close()
+
+
+def figs_heights(indexes, heights):
+    max_y = 1.05*np.array(heights).max()
+    for heights_ in np.array(heights).transpose((1,0,2)):
+        ax = get_ax()
+        for idx, h in zip(indexes, heights_):
+            ax.scatter(idx,h)
+        ax.set_ylim(0, max_y)
+    
+
+def figs_stress_curve(stresses):
+    max_y = 1.05*np.array(stresses).max()
+    max_x = np.array(stresses).shape[1]
+    max_s = []
+    for s_ in np.array(stresses).transpose((1,0,2)):
+        max_s.append(np.array(s_).max(axis=1))
+        _, ax = plt.subplots()
+        ax.set_ylim(0, max_y)
+        ax.set_xlim(0, max_x)
+        ax.plot(max_s)
+        # ax.set_title(title)
+        # for path in path_names:
+        #     plt.savefig(path.format(file_name))
+        # if show_plot: plt.show()
+        # plt.close()
+
+
+def figs_stress_scatter(stresses, ordered=True):
+    max_y = 1.05*np.array(stresses).max()
+    for s_ in np.array(stresses).transpose((1,0,2)):
+        _, ax = plt.subplots()
+        ax.set_ylim(0, max_y)
+        for s in s_:
+            if ordered: s = np.flip(np.sort(s))
+            ax.scatter(range(len(s)), s)
+        # ax.set_title(title)
+        # for path in path_names:
+        #     plt.savefig(path.format(file_name))
+        # if show_plot: plt.show()
+        # plt.close()
 
 def fig_stress_scatter(connectivity, s_matrix, max_y, show_plot, title, path_names, file_name='', ordered=True):
     ax = get_ax()
@@ -57,18 +98,8 @@ def fig_stress_scatter(connectivity, s_matrix, max_y, show_plot, title, path_nam
         plt.savefig(path.format(file_name))
     if show_plot: plt.show()
     plt.close()
-    
 
-def fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, path_names, file_name=''):
-    ax = get_ax()
-    ax_plot_stresses(ax, connectivity, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
-    ax.set_title(title)
-    ax.axis('equal')
-    plt.axis('off')
-    for path in path_names:
-        plt.savefig(path.format(file_name))
-    if show_plot: plt.show()
-    plt.close()
+
 
     
 def get_ax(fig_size=3, dpi=8*72):

@@ -14,18 +14,21 @@ import helpers_grid as help_grid
 # ======================================================================
 
 def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_name):
-    path_name = 'outputs/'+category_name
-    if not os.path.exists(path_name): os.makedirs(path_name)
-    folder_name = f'{degree:0>2}_{rows:0>2}_{cols:0>2}_{deployment}_{folder_name}'
-    path_name += f'/{folder_name}'
+    folder_name = f'{degree:0>2}_{rows:0>2}_{cols:0>2}_{folder_name}'
+    path = 'outputs/'+category_name + f'/{folder_name}'
+    if not os.path.exists(path): os.makedirs(path)
+
+    path_dep = path+f'/{deployment}_deployment'
+    if not os.path.exists(path_dep): os.makedirs(path_dep)
+    else: raise ValueError(f'deployment {deployment} already computed.')
+
+    for s_type in help_.get_stresses_types():
+        # help_.create_dir(path_name+f'/{s_type}/results')
+        os.makedirs(path_dep+f'/{s_type}/values')
+        os.makedirs(path_dep+f'/{s_type}/png/gif')
+        os.makedirs(path_dep+f'/{s_type}/jpg/gif')
     
-    # folder to save gif, jpg, png and csv
-    help_.create_dir(path_name)
-    help_.create_dir(path_name+'/png/gif')
-    help_.create_dir(path_name+'/jpg/gif')
-    help_.create_dir(path_name+'/results')
-    
-    return folder_name, path_name
+    return folder_name, path
 
 def write_metadata(path, degree, rows, cols, deployment, steps, active_cells, target_percents):
     with open(path+"/metadata.txt", "w") as f:
@@ -37,20 +40,8 @@ def write_metadata(path, degree, rows, cols, deployment, steps, active_cells, ta
         f.write("Active Cells    : " + str(active_cells)    + '\n')
         f.write("Target Percents : " + str(target_percents) + '\n')
 
-def read_metadata(path):
-    with open(path+"/metadata.txt") as f:
-        metadata = f.read().splitlines()
-    degree = int(metadata[0][8:])
-    rows = int(metadata[1][8:])
-    cols = int(metadata[2][8:])
-    deployment = metadata[3][13:].strip()
-    steps = int(metadata[4][13:])
-    active_cells = eval(metadata[5][18:])
-    target_percents = eval(metadata[6][18:])
-    return degree, rows, cols, deployment, steps, active_cells, target_percents
-
-def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents, path_name,
-                    steps=10, stress_type='maxBending', verbose=True, dep='linear'):
+def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents, path, deployment,
+                    steps=10, verbose=True, dep='linear'):
         dep_weights = help_grid.set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
         
         # deployent in steps
@@ -58,10 +49,6 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
         percents_per_steps = []
         heights            = []
         # positions          = []
-
-        path = path_name+'/results'
-        path_stresses = path+'/stresses'
-        help_.create_dir(path_stresses)
 
         # write connectivity
         with open(path+'/connectivity.csv',"w", newline='') as csvfile:
@@ -73,9 +60,10 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
             writer = csv.writer(csvfile)
             writer.writerows(help_grid.get_center_position(curr_um))
         
+        stresses_types = help_.get_stresses_types()
         for s in range(steps+1):
-            if   dep=='linear': target_percents_step = [p*s/steps for p in target_percents]
-            elif dep=='min'   : target_percents_step = [min(p, 100*s/steps) for p in target_percents]
+            if   dep=='linear'      : target_percents_step = [p*s/steps for p in target_percents]
+            elif dep=='incremental' : target_percents_step = [min(p, 100*s/steps) for p in target_percents]
             elif dep=='max':
                 max_p = max(target_percents)
                 target_percents_step = [min(p, max_p*s/steps) for p in target_percents]
@@ -89,68 +77,28 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
                                                           target_height_multiplier,
                                                           dep_weights=dep_weights)
             if success:
-                stresses_per_steps[s] = help_.get_max_stress_matrix(curr_um, stress_type)
                 heights.append(curr_um.umbrellaHeights)
-                # positions.append(help_grid.get_center_position(curr_um))
-                # write resuts
-                with open(path_stresses+f'/{s:0>2}.csv',"w", newline='') as csvfile:
-                    writer = csv.writer(csvfile)
-                    writer.writerows(stresses_per_steps[s])
-                    if verbose: print(f'step {s: >2}/{steps} saved.')
+                for s_type in stresses_types:
+                    path_stresses = path+f'/{dep}_deployment/{s_type}/values'
+                    if not os.path.exists(path): os.makedirs(path_stresses)
+                    stresses_per_steps[s] = help_.get_max_stress_matrix(curr_um, s_type)
+                    # write resuts
+                    with open(path_stresses+f'/step_{s:0>2}.csv',"w", newline='') as csvfile:
+                        writer = csv.writer(csvfile)
+                        writer.writerows(stresses_per_steps[s])
+                if verbose: print(f'step {s: >2}/{steps} saved.')
                 
             else: raise ValueError(f'did not converge at step {s}.')
 
         # write heights
-        with open(path+'/heights.csv',"w", newline='') as csvfile:
+        with open(path+f'/{dep}_deployment/heights.csv',"w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(np.array(heights)-input_data['thickness'])
         # write percents
-        with open(path+'/percents.csv',"w", newline='') as csvfile:
+        with open(path+f'/{dep}_deployment/percents.csv',"w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(active_cells)
             writer.writerows(percents_per_steps)
-        
-        return stresses_per_steps, percents_per_steps
-
-def read_results(path_name):
-    path = path_name+'/results'
-    path_stresses = path+'/stresses'
-
-    connectivity  = [[int(i), int(j)] for [i,j] in _read_csv(path+'/connectivity.csv')]
-    init_position = _read_csv(path+'/position.csv')
-
-    heights  = _read_csv(path+'/heights.csv')
-    actuation = _read_csv(path+'/percents.csv')
-    # format data:
-    active_cells = [int(c) for c in actuation[0]] # 1st line is the activated cells indexes[0]
-    percents_per_steps = actuation[1:]
-
-    stresses = []
-    for i in range(len(heights)):
-        stresses.append(_read_csv(path_stresses+f'/{i:0>2}.csv'))
-
-    return connectivity,\
-           np.array(init_position),\
-           heights,\
-           active_cells,\
-           percents_per_steps,\
-           np.array(stresses)
-
-
-
-def get_indexes(degree, rows, cols):
-    if degree==3:
-        indexes = []
-        for r in range(rows):
-            for c in range(r*2*cols, (r+1)*2*cols, 2):
-                if r%2 == 0:
-                    indexes.extend([c, c+1])
-                else:
-                    indexes.extend([c+1, c])
-        return indexes
-    
-    if degree==4:
-        return list(range(rows*cols))
 
 def linear_heights(a,b, step=1):
     '''
@@ -193,15 +141,3 @@ def linear_height_ls(ls, min_dep=0, max_dep=100):
         percents.append(min_dep+p*max_dep)
     return percents
 
-
-
-# ----------------------------------------------------------------------
-# ------------------------------------------------------------ helpers -
-# ----------------------------------------------------------------------
-def _read_csv(path):
-    out = []
-    with open(path,"r", newline='') as csvfile:
-        reader = csv.reader(csvfile, quoting=csv.QUOTE_NONNUMERIC)
-        for row in reader:
-            out.append(row)
-    return out

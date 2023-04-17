@@ -32,7 +32,7 @@ def get_max_stress_matrix(curr_um,
 
 def get_stresses(curr_um,
                  stress_type):
-    if stress_type=='Von Mises':
+    if stress_type=='VonMises':
         stresses = curr_um.maxVonMisesStresses()
     elif stress_type=='maxBending':
         stresses = curr_um.maxBendingStresses()
@@ -45,6 +45,13 @@ def get_stresses(curr_um,
     else:
         raise ValueError(f'the required stress type <{stress_type}> do not correspond to any available stress')
     return stresses
+
+def get_stresses_types():
+    return ['VonMises',
+            'maxBending', 
+            'minBending',
+            'Twisting',
+            'Stretching']
 
 def get_smatrix_min_max(curr_um, stress_type,
                          zero_as_extrem=False):
