@@ -56,7 +56,7 @@ def figs_heights(indexes, heights, active_cells, percents_per_steps, paths, show
         for idx, h, a, p in zip(indexes, heights_, active_cells, p_):
             ax.scatter(idx,h, marker='_')
             if show_active: _ax_dot_active_cell(ax, a, p, np.array([idx, h, h]).T)
-        # ax.set_title(title)
+        ax.set_title('heights per unit')
         for path in paths_s:
             plt.savefig(path.format('heights'))
         if show_plot: plt.show()
@@ -75,7 +75,7 @@ def figs_stress_curve(stresses, paths, show_plot=False):
         ax.set_ylim(0, max_y)
         ax.set_xlim(0, max_x)
         ax.plot(max_s)
-        # ax.set_title(title)
+        ax.set_title('max stress per step')
         for path in paths_s:
             plt.savefig(path.format('stress_curve'))
         if show_plot: plt.show()
@@ -87,11 +87,13 @@ def figs_stress_scatter(stresses, paths, ordered=True, show_plot=False):
     for step, s_ in enumerate(np.array(stresses).transpose((1,0,2))):
         paths_s = [path.format(step/steps*100) for path in paths]
         ax = get_ax()
+        size = plt.rcParams['lines.markersize'] ** 1.4 # default s value is `rcParams['lines.markersize'] ** 2`
         ax.set_ylim(0, max_y)
         for s in s_:
             if ordered: s = np.flip(np.sort(s))
-            ax.scatter(range(len(s)), s)
-        # ax.set_title(title)
+            ax.scatter(range(len(s)), s, s=size)
+        if ordered: ax.set_title('max stress per arm (ordered)')
+        else : ax.set_title('max stress per arm')
         for path in paths_s:
             if ordered: plt.savefig(path.format('ordered_stress_scatter'))
             else: plt.savefig(path.format('stress_scatter'))
@@ -110,9 +112,9 @@ def figs_energy_curve(energies, paths, show_plot=False):
         ax.set_ylim(0, max_y)
         ax.set_xlim(0, max_x)
         ax.plot(e)
-        # ax.set_title(title)
+        ax.set_title('elastic energy per step')
         for path in paths_s:
-            plt.savefig(path.format('el_energy'))
+            plt.savefig(path.format('energies'))
         if show_plot: plt.show()
         else : plt.close()
     

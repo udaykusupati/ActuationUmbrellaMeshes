@@ -113,11 +113,12 @@ def generate_1D(paths, deployments,
                                active_cells,
                                percents_per_steps,
                                _add_jpg_png(path_h),
-                               show_active = True)
-    helpers_plots.figs_stress_curve(stresses, _add_jpg_png(path_s))
-    helpers_plots.figs_stress_scatter(stresses, _add_jpg_png(path_s))
-    helpers_plots.figs_stress_scatter(stresses, _add_jpg_png(path_s), ordered=False)
-    helpers_plots.figs_energy_curve(energies, _add_jpg_png(path_e))
+                               show_active = True,
+                               show_plot = show_plot)
+    helpers_plots.figs_stress_curve(stresses, _add_jpg_png(path_s), show_plot = show_plot)
+    helpers_plots.figs_stress_scatter(stresses, _add_jpg_png(path_s), show_plot = show_plot)
+    helpers_plots.figs_stress_scatter(stresses, _add_jpg_png(path_s), ordered=False, show_plot = show_plot)
+    helpers_plots.figs_energy_curve(energies, _add_jpg_png(path_e), show_plot = show_plot)
     # reverse height for poercent deployment ?
     # save fgis | add title | +++
 
