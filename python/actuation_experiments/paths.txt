@@ -2,3 +2,10 @@ outputs/formatage/120/03_04_01_double_hline
 outputs/formatage/529/03_04_01_double_hline
 outputs/formatage/319/03_04_01_double_hline
 outputs/formatage/259/03_04_01_double_hline
+outputs/formatage/712/03_04_01_double_hline
+outputs/formatage/777/03_04_01_double_hline
+outputs/formatage/557/03_04_01_double_hline
+outputs/formatage/448/03_04_01_double_hline
+outputs/formatage/201/03_04_01_double_hline
+outputs/formatage/151/03_04_01_double_hline
+outputs/formatage/311/03_04_01_double_hline

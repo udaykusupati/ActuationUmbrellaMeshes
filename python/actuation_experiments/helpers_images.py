@@ -16,16 +16,20 @@ def read_metadata(path):
 
 def read_results(path, deployment, stress_type):
     path_dep = path+f'/{deployment}_deployment'
-    path_stresses = path_dep+f'/{stress_type}/values'
+    path_stresses = path_dep+f'/stresses/{stress_type}/values'
 
     connectivity  = [[int(i), int(j)] for [i,j] in _read_csv(path+'/connectivity.csv')]
     init_position = _read_csv(path+'/position.csv')
 
-    heights  = _read_csv(path_dep+'/heights.csv')
-    actuation = _read_csv(path_dep+'/percents.csv')
+    heights  = _read_csv(path_dep+'/heights/values/heights.csv')
+    actuation = _read_csv(path_dep+'/heights/values/percents.csv')
     # format data:
     active_cells = [int(c) for c in actuation[0]] # 1st line is the activated cells indexes[0]
     percents_per_steps = actuation[1:]
+
+    # return only elastic energy
+    el_energies = _read_csv_dic(path_dep+'/energies/values/energies.csv')
+
 
     stresses = []
     for i in range(len(heights)):
@@ -36,7 +40,8 @@ def read_results(path, deployment, stress_type):
            heights,\
            active_cells,\
            percents_per_steps,\
-           np.array(stresses)
+           np.array(stresses),\
+           el_energies
 
 def get_indexes(degree, rows, cols):
     if degree==3:
@@ -63,3 +68,17 @@ def _read_csv(path):
         for row in reader:
             out.append(row)
     return out
+
+def _read_csv_dic(path):
+    # # return a list of dict
+    # return csv.DictReader(open(path))
+    # keys: ['Full','Elastic','Deployment','Repulsion','Attraction','AngleBoundPenalty']
+    
+    # return only elastic energy (index 0):
+    datas = []
+    with open(path, "r") as csvfile: 
+        reader = csv.reader(csvfile)
+        header = next(reader, None)
+        for row in reader:
+            datas.append(row)
+    return [float(energies[1]) for energies in datas]

@@ -5,6 +5,7 @@ import sys
 import os
 sys.path.append('..')
 from configuration import deploy_umbrella_pin_rigid_motion
+from pipeline_helper import allEnergies
 
 import helpers_tools as help_
 import helpers_grid as help_grid
@@ -22,11 +23,11 @@ def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_n
     if not os.path.exists(path_dep): os.makedirs(path_dep)
     else: raise ValueError(f'deployment {deployment} already computed.')
 
+    for type_ in ['heights', 'energies']:
+        _sub_folder(path_dep+f'/{type_}')
+
     for s_type in help_.get_stresses_types():
-        # help_.create_dir(path_name+f'/{s_type}/results')
-        os.makedirs(path_dep+f'/{s_type}/values')
-        os.makedirs(path_dep+f'/{s_type}/png/gif')
-        os.makedirs(path_dep+f'/{s_type}/jpg/gif')
+        _sub_folder(path_dep+f'/stresses/{s_type}')
     
     return folder_name, path
 
@@ -48,7 +49,10 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
         stresses_per_steps = np.zeros((steps+1, curr_um.numUmbrellas(), curr_um.numUmbrellas())) # 1st step is deployment 0%
         percents_per_steps = []
         heights            = []
-        # positions          = []
+        energies           = []
+
+        # header for energies.csv
+        energies.append(allEnergies(curr_um).keys()) # will be read back as dict
 
         # write connectivity
         with open(path+'/connectivity.csv',"w", newline='') as csvfile:
@@ -78,9 +82,9 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
                                                           dep_weights=dep_weights)
             if success:
                 heights.append(curr_um.umbrellaHeights)
+                energies.append(list(allEnergies(curr_um).values()))
                 for s_type in stresses_types:
-                    path_stresses = path+f'/{dep}_deployment/{s_type}/values'
-                    if not os.path.exists(path): os.makedirs(path_stresses)
+                    path_stresses = path+f'/{dep}_deployment/stresses/{s_type}/values'
                     stresses_per_steps[s] = help_.get_max_stress_matrix(curr_um, s_type)
                     # write resuts
                     with open(path_stresses+f'/step_{s:0>2}.csv',"w", newline='') as csvfile:
@@ -91,14 +95,18 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
             else: raise ValueError(f'did not converge at step {s}.')
 
         # write heights
-        with open(path+f'/{dep}_deployment/heights.csv',"w", newline='') as csvfile:
+        with open(path+f'/{dep}_deployment/heights/values/heights.csv',"w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(np.array(heights)-input_data['thickness'])
-        # write percents
-        with open(path+f'/{dep}_deployment/percents.csv',"w", newline='') as csvfile:
+        # write percents and active cells
+        with open(path+f'/{dep}_deployment/heights/values/percents.csv',"w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(active_cells)
             writer.writerows(percents_per_steps)
+        # write energies
+        with open(path+f'/{dep}_deployment/energies/values/energies.csv',"w", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerows(energies)
 
 def linear_heights(a,b, step=1):
     '''
@@ -141,3 +149,8 @@ def linear_height_ls(ls, min_dep=0, max_dep=100):
         percents.append(min_dep+p*max_dep)
     return percents
 
+
+def _sub_folder(path):
+    os.makedirs(path+'/values')
+    os.makedirs(path+'/png/gif')
+    os.makedirs(path+'/jpg/gif')

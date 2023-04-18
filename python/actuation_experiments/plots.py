@@ -46,7 +46,7 @@ def plot2D(input_data, curr_um,
     ax = help_.get_ax(FIG_SIZE)
     help_.ax_plot_edges(ax, input_data)
     help_.ax_annotate_index(ax, center_position)
-    if show_height: help_.ax_annotate_height(ax, curr_um, center_position)
+    if show_height: help_.ax_annotate_height(ax, curr_um.umbrellaHeights, center_position)
     help_.ax_annotate_active(ax, active_cells, target_percents, center_position)
 
     ax.axis('equal')

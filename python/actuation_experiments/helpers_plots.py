@@ -9,10 +9,9 @@ def ax_annotate_index(ax, positions):
     for i, [x,y,z] in enumerate(positions):
         ax.annotate(f'{i}', (x,y), ha='center', color='black')
 
-def ax_annotate_height(ax, curr_um, positions):
-    um_heights = curr_um.umbrellaHeights
-    for [x,y,z], h in zip(positions, um_heights):
-        c = _color_map(h, min(um_heights), max(um_heights))
+def ax_annotate_height(ax, heights, positions):
+    for [x,y,z], h in zip(positions, heights):
+        c = _color_map(h, min(heights), max(heights))
         ax.annotate(f'[{h:.2f}]', (x,y), textcoords='offset points', xytext=(0,-12), ha='center', c=c)
 
 def ax_annotate_active(ax, active_cells, target_percents, positions):
@@ -44,63 +43,78 @@ def fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show
     for path in path_names:
         plt.savefig(path.format(file_name))
     if show_plot: plt.show()
-    plt.close()
+    else : plt.close()
 
 
-def figs_heights(indexes, heights):
+def figs_heights(indexes, heights, active_cells, percents_per_steps, paths, show_active = True, show_plot=False):
     max_y = 1.05*np.array(heights).max()
-    for heights_ in np.array(heights).transpose((1,0,2)):
+    steps = np.array(heights).shape[1]-1
+    for s, (heights_, p_) in enumerate(zip(np.array(heights).transpose((1,0,2)), np.array(percents_per_steps).transpose((1,0,2)))):
+        paths_s = [path.format(s/steps*100) for path in paths]
         ax = get_ax()
-        for idx, h in zip(indexes, heights_):
-            ax.scatter(idx,h)
         ax.set_ylim(0, max_y)
-    
+        for idx, h, a, p in zip(indexes, heights_, active_cells, p_):
+            ax.scatter(idx,h, marker='_')
+            if show_active: _ax_dot_active_cell(ax, a, p, np.array([idx, h, h]).T)
+        # ax.set_title(title)
+        for path in paths_s:
+            plt.savefig(path.format('heights'))
+        if show_plot: plt.show()
+        else : plt.close()
 
-def figs_stress_curve(stresses):
+
+def figs_stress_curve(stresses, paths, show_plot=False):
     max_y = 1.05*np.array(stresses).max()
     max_x = np.array(stresses).shape[1]
+    steps = max_x-1
     max_s = []
-    for s_ in np.array(stresses).transpose((1,0,2)):
+    for step, s_ in enumerate(np.array(stresses).transpose((1,0,2))):
+        paths_s = [path.format(step/steps*100) for path in paths]
         max_s.append(np.array(s_).max(axis=1))
-        _, ax = plt.subplots()
+        ax = get_ax()
         ax.set_ylim(0, max_y)
         ax.set_xlim(0, max_x)
         ax.plot(max_s)
         # ax.set_title(title)
-        # for path in path_names:
-        #     plt.savefig(path.format(file_name))
-        # if show_plot: plt.show()
-        # plt.close()
+        for path in paths_s:
+            plt.savefig(path.format('stress_curve'))
+        if show_plot: plt.show()
+        else : plt.close()
 
-
-def figs_stress_scatter(stresses, ordered=True):
+def figs_stress_scatter(stresses, paths, ordered=True, show_plot=False):
     max_y = 1.05*np.array(stresses).max()
-    for s_ in np.array(stresses).transpose((1,0,2)):
-        _, ax = plt.subplots()
+    steps = np.array(stresses).shape[1] -1
+    for step, s_ in enumerate(np.array(stresses).transpose((1,0,2))):
+        paths_s = [path.format(step/steps*100) for path in paths]
+        ax = get_ax()
         ax.set_ylim(0, max_y)
         for s in s_:
             if ordered: s = np.flip(np.sort(s))
             ax.scatter(range(len(s)), s)
         # ax.set_title(title)
-        # for path in path_names:
-        #     plt.savefig(path.format(file_name))
-        # if show_plot: plt.show()
-        # plt.close()
+        for path in paths_s:
+            if ordered: plt.savefig(path.format('ordered_stress_scatter'))
+            else: plt.savefig(path.format('stress_scatter'))
+        if show_plot: plt.show()
+        else : plt.close()
 
-def fig_stress_scatter(connectivity, s_matrix, max_y, show_plot, title, path_names, file_name='', ordered=True):
-    ax = get_ax()
-    c = np.array(connectivity)
-    stresses = np.flip(np.sort(s_matrix[c[:,0], c[:,1]])) if ordered else s_matrix[c[:,0], c[:,1]]
-    ax.scatter(range(len(stresses)), stresses, s=5)
-    ax.set_ylim(0, max_y)
-    ax.set_title(title)
-    for path in path_names:
-        plt.savefig(path.format(file_name))
-    if show_plot: plt.show()
-    plt.close()
-
-
-
+def figs_energy_curve(energies, paths, show_plot=False):
+    max_y = 1.05*np.array(energies).max()
+    max_x = np.array(energies).shape[1]
+    steps = max_x-1
+    e = []
+    for step, e_ in enumerate(np.array(energies).transpose()):
+        paths_s = [path.format(step/steps*100) for path in paths]
+        e.append(e_)
+        ax = get_ax()
+        ax.set_ylim(0, max_y)
+        ax.set_xlim(0, max_x)
+        ax.plot(e)
+        # ax.set_title(title)
+        for path in paths_s:
+            plt.savefig(path.format('el_energy'))
+        if show_plot: plt.show()
+        else : plt.close()
     
 def get_ax(fig_size=3, dpi=8*72):
     _, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=dpi)
