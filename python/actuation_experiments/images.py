@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import helpers_images
-import helpers_plots
+import figure_2D 
 
 # ======================================================================
 # ==================================================== GENERATE IMAGES =
@@ -47,15 +47,15 @@ def generate_2D(path, deployment,
             path_names_s.append(path.format(s/steps*100))
         
         # normalized with general extrems values
-        helpers_plots.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
+        figure_2D.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
                               s_matrix, deployed*min_stress_all, deployed*max_stress_all, show_plot, title_s.format('all'), path_names_s, 'all')
         
         # normalized with step extrems values
-        helpers_plots.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
+        figure_2D.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
                               s_matrix, deployed*min_stress_step, deployed*max_stress_step, show_plot, title_s.format('step'), path_names_s, 'perSteps')
 
         # normalized with own extrems values
-        helpers_plots.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
+        figure_2D.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
                               s_matrix, 0, deployed*max_stress_per_arm, show_plot, title_s.format('own'), path_names_s, 'own')
         
         # perturbations do not affect deployed state
@@ -95,36 +95,37 @@ def generate_1D(paths, deployments,
 
     if len(paths) == 1:
          save_dir = paths[0] + f'/{deployments[0]}_deployment'
-    else:
-         if not os.path.exists(save_dir):
+    if save_dir!= '':
+        if not os.path.exists(save_dir):
               os.makedirs(save_dir+ '/energies/jpg/gif')
               os.makedirs(save_dir+ '/energies/png/gif')
               os.makedirs(save_dir+ '/heights/jpg/gif')
               os.makedirs(save_dir+ '/heights/png/gif')
               os.makedirs(save_dir+ f'/stresses/{stress_type}/jpg/gif')
               os.makedirs(save_dir+ f'/stresses/{stress_type}/png/gif')
+        path_e = save_dir + '/energies'
+        path_h = save_dir + '/heights'
+        path_s = save_dir + f'/stresses/{stress_type}'
+    else : path_e = path_h = path_s = ''
 
-    path_e = save_dir + '/energies'
-    path_h = save_dir + '/heights'
-    path_s = save_dir + f'/stresses/{stress_type}'
-
-    helpers_plots.figs_heights(indexes,
+    figure_2D.figs_heights(indexes,
                                heights,
                                active_cells,
                                percents_per_steps,
                                _add_jpg_png(path_h),
                                show_active = True,
                                show_plot = show_plot)
-    helpers_plots.figs_stress_curve(stresses, _add_jpg_png(path_s), show_plot = show_plot)
-    helpers_plots.figs_stress_scatter(stresses, _add_jpg_png(path_s), show_plot = show_plot)
-    helpers_plots.figs_stress_scatter(stresses, _add_jpg_png(path_s), ordered=False, show_plot = show_plot)
-    helpers_plots.figs_energy_curve(energies, _add_jpg_png(path_e), show_plot = show_plot)
+    figure_2D.figs_stress_curve(stresses, _add_jpg_png(path_s), show_plot = show_plot)
+    figure_2D.figs_stress_scatter(stresses, _add_jpg_png(path_s), show_plot = show_plot)
+    figure_2D.figs_stress_scatter(stresses, _add_jpg_png(path_s), ordered=False, show_plot = show_plot)
+    figure_2D.figs_energy_curve(energies, _add_jpg_png(path_e), show_plot = show_plot)
     # reverse height for poercent deployment ?
     # save fgis | add title | +++
 
 
-def _add_jpg_png(path):
+def _add_jpg_png(path=''):
     paths = []
-    for f in ['jpg', 'png']:
-        paths.append(f'{path}/{f}'+'/{{}}_{:0>3.0f}Deployed'+f'.{f}')
+    if path != '':
+        for f in ['jpg', 'png']:
+            paths.append(f'{path}/{f}'+'/{{}}_{:0>3.0f}Deployed'+f'.{f}')
     return paths

@@ -9,7 +9,7 @@ from pipeline_helper import allEnergies
 
 import helpers_tools as help_
 import helpers_grid as help_grid
-from plots import projection2D
+from figure_2D import projection2D
 
 # ======================================================================
 # ============================================================ GENERAL =
@@ -43,7 +43,7 @@ def write_metadata(path, degree, rows, cols, deployment, steps, active_cells, ta
         f.write("Target Percents : " + str(target_percents) + '\n')
 
 def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents, path, deployment,
-                    steps=10, verbose=True, dep='linear'):
+                    steps=10, verbose=True, dep='linear', prj2D=False):
         dep_weights = help_grid.set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
         
         # deployent in steps
@@ -95,7 +95,9 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
                 
             else: raise ValueError(f'did not converge at step {s}.')
         
-        projection2D(input_data['umbrella_connectivity'], curr_um, active_cells, target_percents, file_name=path+'/projection2D.png')
+        if prj2D: projection2D(input_data['umbrella_connectivity'],
+                               curr_um, active_cells, target_percents,
+                               file_name=path+'/projection2D.png')
         
         # write heights
         with open(path+f'/{dep}_deployment/heights/values/heights.csv',"w", newline='') as csvfile:

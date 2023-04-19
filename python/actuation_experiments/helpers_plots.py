@@ -23,118 +23,28 @@ def ax_plot_edges(ax, input_data):
     for e in _get_edges(input_data):
         ax.plot(e[:, 0], e[:, 1], color="lightblue")
 
+def ax_dot_active_cell(ax, active_cells, target_percents, positions, markersize=1.4):
+    s = plt.rcParams['lines.markersize']**markersize # default s value is `rcParams['lines.markersize'] ** 2`
+    lw = s/15 # width of marker's edge
+    for i, p in zip(active_cells, target_percents):
+        r = p/100
+        [x,y,_] = positions[i]
+        ax.scatter(x,y, color=(r,1-r,0), s=s, zorder=2.5, edgecolors='white', linewidths=lw) # default zorder for plot is 2 (higher means more on top)
+
 def ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, percents, positions, show_percent):
     _ax_arms_as_stress(ax, connectivity, stress_matrix, min_, max_, positions)
-    _ax_dot_active_cell(ax, active_cells, percents, positions)
+    ax_dot_active_cell(ax, active_cells, percents, positions)
     _ax_show_percent(ax, show_percent, active_cells, percents, positions)
 
 def ax_proj2D(ax, connectivity, active_cells, percents, positions):
     arms_pos = _get_arms_pos(connectivity, positions)
     for arm in arms_pos:
         ax.plot(arm[:,0], arm[:,1], c='black')#, linewidth=8)
-        _ax_dot_active_cell(ax, active_cells, percents, positions)
-
-def fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent, s_matrix, min_, max_, show_plot, title, path_names, file_name=''):
-    ax = get_ax()
-    ax_plot_stresses(ax, connectivity, s_matrix, min_, max_, active_cells, percents, init_center_pos, show_percent)
-    ax.set_title(title)
-    ax.axis('equal')
-    plt.axis('off')
-    for path in path_names:
-        plt.savefig(path.format(file_name))
-    if show_plot: plt.show()
-    else : plt.close()
-
-
-def figs_heights(indexes, heights, active_cells, percents_per_steps, paths, show_active = True, show_plot=False):
-    max_y = 1.05*np.array(heights).max()
-    steps = np.array(heights).shape[1]-1
-    for s, (heights_, p_) in enumerate(zip(np.array(heights).transpose((1,0,2)), np.array(percents_per_steps).transpose((1,0,2)))):
-        paths_s = [path.format(s/steps*100) for path in paths]
-        ax = get_ax()
-        ax.set_ylim(0, max_y)
-        for idx, h, a, p in zip(indexes, heights_, active_cells, p_):
-            ax.scatter(idx,h, marker='_')
-            if show_active: _ax_dot_active_cell(ax, a, p, np.array([idx, h, h]).T)
-        ax.set_title('heights per unit')
-        for path in paths_s:
-            plt.savefig(path.format('heights'))
-        if show_plot: plt.show()
-        else : plt.close()
-
-
-def figs_stress_curve(stresses, paths, show_plot=False):
-    max_y = 1.05*np.array(stresses).max()
-    max_x = np.array(stresses).shape[1]
-    steps = max_x-1
-    max_s = []
-    for step, s_ in enumerate(np.array(stresses).transpose((1,0,2))):
-        paths_s = [path.format(step/steps*100) for path in paths]
-        max_s.append(np.array(s_).max(axis=1))
-        ax = get_ax()
-        ax.set_ylim(0, max_y)
-        ax.set_xlim(0, max_x)
-        ax.plot(max_s)
-        ax.set_title('max stress per step')
-        for path in paths_s:
-            plt.savefig(path.format('stress_curve'))
-        if show_plot: plt.show()
-        else : plt.close()
-
-def figs_stress_scatter(stresses, paths, ordered=True, show_plot=False):
-    max_y = 1.05*np.array(stresses).max()
-    steps = np.array(stresses).shape[1] -1
-    for step, s_ in enumerate(np.array(stresses).transpose((1,0,2))):
-        paths_s = [path.format(step/steps*100) for path in paths]
-        ax = get_ax()
-        size = plt.rcParams['lines.markersize'] ** 1.4 # default s value is `rcParams['lines.markersize'] ** 2`
-        ax.set_ylim(0, max_y)
-        for s in s_:
-            if ordered: s = np.flip(np.sort(s))
-            ax.scatter(range(len(s)), s, s=size)
-        if ordered: ax.set_title('max stress per arm (ordered)')
-        else : ax.set_title('max stress per arm')
-        for path in paths_s:
-            if ordered: plt.savefig(path.format('ordered_stress_scatter'))
-            else: plt.savefig(path.format('stress_scatter'))
-        if show_plot: plt.show()
-        else : plt.close()
-
-def figs_energy_curve(energies, paths, show_plot=False):
-    max_y = 1.05*np.array(energies).max()
-    max_x = np.array(energies).shape[1]
-    steps = max_x-1
-    e = []
-    for step, e_ in enumerate(np.array(energies).transpose()):
-        paths_s = [path.format(step/steps*100) for path in paths]
-        e.append(e_)
-        ax = get_ax()
-        ax.set_ylim(0, max_y)
-        ax.set_xlim(0, max_x)
-        ax.plot(e)
-        ax.set_title('elastic energy per step')
-        for path in paths_s:
-            plt.savefig(path.format('energies'))
-        if show_plot: plt.show()
-        else : plt.close()
-    
-def get_ax(fig_size=3, dpi=8*72):
-    _, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=dpi)
-    if fig_size == 3: # is_default
-        plt.rcParams.update({'font.size': 5})
-    return ax
+        ax_dot_active_cell(ax, active_cells, percents, positions)
 
 # ----------------------------------------------------------------------
 # ------------------------------------------------------------ helpers -
-# ----------------------------------------------------------------------
-def _ax_dot_active_cell(ax, active_cells, target_percents, positions):
-    s = plt.rcParams['lines.markersize'] ** 1.4 # default s value is `rcParams['lines.markersize'] ** 2`
-    lw = s/15 # width of marker's edge
-    for i, p in zip(active_cells, target_percents):
-        r = p/100
-        [x,y,_] = positions[i]
-        ax.scatter(x,y, color=(r,1-r,0), s=s, zorder=2.5, edgecolors='white', linewidths=lw) # default zorder for plot is 2 (higher means more on top)
-        
+# ----------------------------------------------------------------------        
 def _ax_arms_as_stress(ax, connectivity, s_matrix, min_, max_, positions):
     arms_pos = _get_arms_pos(connectivity, positions)
     colors = _get_arms_color(connectivity, s_matrix, min_, max_)
