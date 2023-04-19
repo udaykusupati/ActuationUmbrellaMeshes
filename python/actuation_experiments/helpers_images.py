@@ -8,11 +8,10 @@ def read_metadata(path):
     degree = int(metadata[0][8:])
     rows = int(metadata[1][8:])
     cols = int(metadata[2][8:])
-    deployment = metadata[3][13:].strip()
-    steps = int(metadata[4][13:])
-    active_cells = eval(metadata[5][18:])
-    target_percents = eval(metadata[6][18:])
-    return degree, rows, cols, deployment, steps, active_cells, target_percents
+    steps = int(metadata[3][13:])
+    active_cells = eval(metadata[4][18:])
+    target_percents = eval(metadata[5][18:])
+    return degree, rows, cols, steps, active_cells, target_percents
 
 def read_results(path, deployment, stress_type):
     path_dep = path+f'/{deployment}_deployment'

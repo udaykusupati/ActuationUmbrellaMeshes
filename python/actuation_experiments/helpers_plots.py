@@ -23,13 +23,13 @@ def ax_plot_edges(ax, input_data):
     for e in _get_edges(input_data):
         ax.plot(e[:, 0], e[:, 1], color="lightblue")
 
-def ax_dot_active_cell(ax, active_cells, target_percents, positions, markersize=1.4):
+def ax_dot_active_cell(ax, active_cells, target_percents, positions, markersize=1.4, edgecolor='white'):
     s = plt.rcParams['lines.markersize']**markersize # default s value is `rcParams['lines.markersize'] ** 2`
     lw = s/15 # width of marker's edge
     for i, p in zip(active_cells, target_percents):
         r = p/100
         [x,y,_] = positions[i]
-        ax.scatter(x,y, color=(r,1-r,0), s=s, zorder=2.5, edgecolors='white', linewidths=lw) # default zorder for plot is 2 (higher means more on top)
+        ax.scatter(x,y, color=(r,1-r,0), s=s, zorder=2.5, edgecolors=edgecolor, linewidths=lw) # default zorder for plot is 2 (higher means more on top)
 
 def ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, percents, positions, show_percent):
     _ax_arms_as_stress(ax, connectivity, stress_matrix, min_, max_, positions)

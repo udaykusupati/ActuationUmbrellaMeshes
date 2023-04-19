@@ -28,43 +28,53 @@ def generate_2D(path, deployment,
     c = np.array(connectivity)
     max_stress_per_arm = stresses_per_steps.transpose()[c[:,0], c[:,1]].max(axis=1)
     
-    title = '{{}} - {:0>3.0f}% deployed ('+f'{stress_type}:'+' {:0>6.2f})'
-    path_names = []
+    title_s = '{{}} - {:0>3.0f}% deployed ('+f'{stress_type}:'+' {:0>6.2f})'
+    title_h = '{{}} - {:0>3.0f}% deployed'
+    path_stresses = []
+    path_heights = []
     for f in ['jpg', 'png']:
-        path_names.append(f'{path}/{deployment}_deployment/stresses/{stress_type}/{f}'+'/{{}}_{:0>3.0f}Deployed'+f'.{f}')
+        path_stresses.append(f'{path}/{deployment}_deployment/stresses/{stress_type}/{f}'+'/{{}}_{:0>3.0f}Deployed'+f'.{f}')
+        path_heights.append(f'{path}/{deployment}_deployment/heights/{f}'+'/{{}}_{:0>3.0f}Deployed'+f'.{f}')
     
     # random perturbations does affect undeployed state
     deployed = False
     
-    for s, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
+    for step, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
         min_stress_step = s_matrix[s_matrix != 0].min()
         max_stress_step = s_matrix[s_matrix != 0].max()
         max_stresses.append(max_stress_step)
 
-        title_s = title.format(s/steps*100, max_stress_step)
-        path_names_s = []
-        for path in path_names:
-            path_names_s.append(path.format(s/steps*100))
+        title_step_s = title_s.format(step/steps*100, max_stress_step)
+        title_step_h = title_h.format(step/steps*100, max_stress_step)
+        path_s = []
+        path_h = []
+        for s, h in zip(path_stresses, path_heights):
+            path_s.append(s.format(step/steps*100))
+            path_h.append(h.format(step/steps*100))
         
         # normalized with general extrems values
         figure_2D.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
-                              s_matrix, deployed*min_stress_all, deployed*max_stress_all, show_plot, title_s.format('all'), path_names_s, 'all')
+                              s_matrix, deployed*min_stress_all, deployed*max_stress_all, show_plot, title_step_s.format('all'), path_s, 'all')
         
         # normalized with step extrems values
         figure_2D.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
-                              s_matrix, deployed*min_stress_step, deployed*max_stress_step, show_plot, title_s.format('step'), path_names_s, 'perSteps')
+                              s_matrix, deployed*min_stress_step, deployed*max_stress_step, show_plot, title_step_s.format('step'), path_s, 'perSteps')
 
         # normalized with own extrems values
         figure_2D.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
-                              s_matrix, 0, deployed*max_stress_per_arm, show_plot, title_s.format('own'), path_names_s, 'own')
+                              s_matrix, 0, deployed*max_stress_per_arm, show_plot, title_step_s.format('own'), path_s, 'own')
+        
+        # heights
+        figure_2D.fig_height2D(active_cells, heights[step], init_center_pos, show_plot, title_step_h.format('heights'), path_h, 'heights2D' )
         
         # perturbations do not affect deployed state
         deployed = True
 
-        if verbose: print(f'Images for step {s:0>2} successfully saved.')
+        if verbose: print(f'2D images for step {step:0>2} successfully saved.')
 
 def generate_1D(paths, deployments,
-                save_dir = '', stress_type='maxBending', show_percent=False, show_plot=False):
+                save_dir = '', stress_type='maxBending', show_percent=False,
+                show_plot=False, verbose=False):
     
 
     degrees      = []
@@ -108,19 +118,37 @@ def generate_1D(paths, deployments,
         path_s = save_dir + f'/stresses/{stress_type}'
     else : path_e = path_h = path_s = ''
 
-    figure_2D.figs_heights(indexes,
-                               heights,
-                               active_cells,
-                               percents_per_steps,
-                               _add_jpg_png(path_h),
-                               show_active = True,
-                               show_plot = show_plot)
+    figure_2D.figs_heights_curve(indexes,
+                                 heights,
+                                 active_cells,
+                                 percents_per_steps,
+                                 _add_jpg_png(path_h),
+                                 show_active = True,
+                                 ordered=False,
+                                 show_plot = show_plot)
+    if verbose: print('heights curve done')
+    
+    figure_2D.figs_heights_curve(indexes,
+                                 heights,
+                                 active_cells,
+                                 percents_per_steps,
+                                 _add_jpg_png(path_h),
+                                 show_active = True,
+                                 ordered=True,
+                                 show_plot = show_plot)
+    if verbose: print('ordered heights curve done')
+    
     figure_2D.figs_stress_curve(stresses, _add_jpg_png(path_s), show_plot = show_plot)
+    if verbose: print('stress curve done')
+    
     figure_2D.figs_stress_scatter(stresses, _add_jpg_png(path_s), show_plot = show_plot)
+    if verbose: print('stress scatter done')
+    
     figure_2D.figs_stress_scatter(stresses, _add_jpg_png(path_s), ordered=False, show_plot = show_plot)
+    if verbose: print('ordered stress scatter done')
+    
     figure_2D.figs_energy_curve(energies, _add_jpg_png(path_e), show_plot = show_plot)
-    # reverse height for poercent deployment ?
-    # save fgis | add title | +++
+    if verbose: print('energy curve done')
 
 
 def _add_jpg_png(path=''):
