@@ -581,7 +581,7 @@ def scale_data(input_data, scale):
     input_data['width'] = scale_vecs(input_data['width'], scale)
     return input_data
 
-def export_data(vGlb, edgeGlb, flipBit, t_mesh, uv_mesh, scaleFactors, nbr_map, v_out, f_out, plateLength, armPlateEdgeAxisOffset, armJointAxisOffset, width, thickness, targetSpacingFactor, marginLength, filename = 'data.json', select_umbrella = None, min_coerce_dist = 1e-8):
+def export_data(vGlb, edgeGlb, flipBit, t_mesh, uv_mesh, scaleFactors, nbr_map, v_out, f_out, plateLength, armPlateEdgeAxisOffset, armJointAxisOffset, width, thickness, targetSpacingFactor, marginLength, filename = 'data.json', select_umbrella = None, min_coerce_dist = 1e-8, scaling = True):
     input_data = {'vertices': [],
                   'edges' : [],
                   'alphas' : [],
@@ -702,7 +702,10 @@ def export_data(vGlb, edgeGlb, flipBit, t_mesh, uv_mesh, scaleFactors, nbr_map, 
             input_data['target_f'].append([t_f[0], t_f[1], t_f[2]])
 
     input_data['bbox_diagonal'] = get_bbox_diagonal(input_data['vertices'])
-    scale_down = 1.0/input_data['bbox_diagonal']
+    if scaling:
+        scale_down = 1.0/input_data['bbox_diagonal']
+    else:
+        scale_down = 1.0
     input_data = scale_data(input_data, scale_down)
 
     
@@ -853,7 +856,7 @@ def getScaleFactorPerVertex(scale_factors, faces, num_vertices):
 
 
 
-def genPattern(edgeLength, t_mesh, uv_mesh, i_out, v_out, f_out, c_out, x_out, scaleLength, jsonPath, marginLength = 0.0, armPlateEdgeAxisOffset = 0.0, armJointAxisOffset = 0.0, asymmetryOffset = 0, width = 5, thickness = 3, targetSpacingFactor = 1, minHeight = 80, select_umbrella = False, handlePivots = True, min_coerce_dist = 1e-8, degree = 3, overhang = None, heights = None):
+def genPattern(edgeLength, t_mesh, uv_mesh, i_out, v_out, f_out, c_out, x_out, scaleLength, jsonPath, marginLength = 0.0, armPlateEdgeAxisOffset = 0.0, armJointAxisOffset = 0.0, asymmetryOffset = 0, width = 5, thickness = 3, targetSpacingFactor = 1, minHeight = 80, select_umbrella = False, handlePivots = True, min_coerce_dist = 1e-8, degree = 3, overhang = None, heights = None, scaling = True):
 
     mesh_degree = degree
     # pivot offset handling would move the TA joints of neighboring plates inward so that a spacing of "thickness" is made between them. Similarly for the z direction
@@ -927,7 +930,7 @@ def genPattern(edgeLength, t_mesh, uv_mesh, i_out, v_out, f_out, c_out, x_out, s
     if handlePivots:
         vGlb = handle_pivot_offsets(vGlb, edgeGlb, flipBit, thickness, overhang=overhang)
 
-    vGlb_exp, edgeGlb_exp, vGlb_scaled = export_data(vGlb, edgeGlb, flipBit, t_mesh, uv_mesh, scaleLength, nbr_map, v_out, f_out, plateLength, armPlateEdgeAxisOffset, armJointAxisOffset, width, thickness, targetSpacingFactor, marginLength, filename=jsonPath, select_umbrella=select_umbrella, min_coerce_dist=min_coerce_dist)
+    vGlb_exp, edgeGlb_exp, vGlb_scaled = export_data(vGlb, edgeGlb, flipBit, t_mesh, uv_mesh, scaleLength, nbr_map, v_out, f_out, plateLength, armPlateEdgeAxisOffset, armJointAxisOffset, width, thickness, targetSpacingFactor, marginLength, filename=jsonPath, select_umbrella=select_umbrella, min_coerce_dist=min_coerce_dist, scaling = scaling)
     assert vGlb == vGlb_exp and edgeGlb == edgeGlb_exp
     
     
