@@ -49,7 +49,13 @@ def _ax_arms_as_stress(ax, connectivity, s_matrix, min_, max_, positions):
     arms_pos = _get_arms_pos(connectivity, positions)
     colors = _get_arms_color(connectivity, s_matrix, min_, max_)
     for arm,c in zip(arms_pos, colors):
-        ax.plot(arm[:,0], arm[:,1], c=c)#, linewidth=8)
+        ax.plot(arm[:,0], arm[:,1], c=c)# linewidth=8)
+        
+def ax_arms(ax, connectivity, positions):
+    arms_pos = _get_arms_pos(connectivity, positions)
+    for arm in arms_pos:
+        ax.plot(arm[:,0], arm[:,1], c='lightgrey', linewidth=0.5)
+    
 
 def _ax_show_percent(ax, show_percent, active_cells, target_percents, positions):
     for i, p in zip(active_cells*show_percent, target_percents):

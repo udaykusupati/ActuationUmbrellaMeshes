@@ -82,14 +82,17 @@ def fig_arm_stresses(connectivity,
     if show_plot: plt.show()
     else : plt.close()
     
-def fig_height2D(active_cells, heights, positions, show_plot, title, path_names, file_name=''):
-    ax = get_ax()
+def fig_height2D(connectivity, active_cells, heights, positions, show_plot, title, path_names, file_name=''):
     h = np.array(heights)
     h = (1-h/h.max())*100
     h[h<0]=0
     h[h>100]=100
+
+    ax = get_ax()
     help_.ax_dot_active_cell(ax, list(range(h.shape[0])), h,  positions, markersize=1, edgecolor='white')
     help_.ax_dot_active_cell(ax, active_cells, h[active_cells], positions, markersize=1, edgecolor='black')
+    help_.ax_arms(ax, connectivity, positions)
+    
     ax.axis('equal')
     plt.axis('off')
     ax.set_title(title)

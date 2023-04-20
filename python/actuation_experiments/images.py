@@ -65,7 +65,7 @@ def generate_2D(path, deployment,
                               s_matrix, 0, deployed*max_stress_per_arm, show_plot, title_step_s.format('own'), path_s, 'own')
         
         # heights
-        figure_2D.fig_height2D(active_cells, heights[step], init_center_pos, show_plot, title_step_h.format('heights'), path_h, 'heights2D' )
+        figure_2D.fig_height2D(connectivity, active_cells, heights[step], init_center_pos, show_plot, title_step_h.format('heights'), path_h, 'heights2D' )
         
         # perturbations do not affect deployed state
         deployed = True

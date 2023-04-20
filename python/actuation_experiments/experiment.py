@@ -1,6 +1,6 @@
 from tools import *
-from figure_2D import *
 from images import *
+from figure_2D import plot2D
 from RegularGrid import RegularGrid
 
 
@@ -58,3 +58,15 @@ def run(degree, rows, cols, category, name, steps, deployment, active_cells, tar
     img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=verbose)
     
     return
+
+def read_inputs(path):
+    with open(path) as f:
+        inputs = f.read().splitlines()
+    name = inputs[0][6:]
+    degree = int(inputs[1][8:])
+    rows = int(inputs[2][6:])
+    cols = int(inputs[3][6:])
+    steps = int(inputs[4][7:])
+    active_cells = eval(inputs[5][14:])
+    target_percents = eval(inputs[6][17:])
+    return name, degree, rows, cols, steps, active_cells, target_percents

@@ -56,15 +56,9 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
     # header for energies.csv
     energies.append(allEnergies(curr_um).keys()) # will be read back as dict
 
-    # write connectivity
-    with open(path+'/connectivity.csv',"w", newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerows(input_data['umbrella_connectivity'])
-        
-    # write initial position
-    with open(path+'/position.csv',"w", newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerows(help_grid.get_center_position(curr_um))
+    # write 
+    _write_rows(path+'/connectivity.csv',input_data['umbrella_connectivity'])
+    _write_rows(path+'/position.csv', help_grid.get_center_position(curr_um))
     
     stresses_types = help_.get_stresses_types()
     for s in range(steps+1):
@@ -100,45 +94,42 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
                             curr_um, active_cells, target_percents,
                             file_name=path+'/projection2D.png', show_plot = False)
     
-    # write heights
-    with open(path+f'/{dep}_deployment/heights/values/heights.csv',"w", newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerows(np.array(heights)-input_data['thickness'])
+    # write
+    _write_rows(path+f'/{dep}_deployment/heights/values/heights.csv',
+                np.array(heights)-input_data['thickness'])
+    _write_rows(path+f'/{dep}_deployment/energies/values/energies.csv',
+                energies)
     # write percents and active cells
     with open(path+f'/{dep}_deployment/heights/values/percents.csv',"w", newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(active_cells)
         writer.writerows(percents_per_steps)
-    # write energies
-    with open(path+f'/{dep}_deployment/energies/values/energies.csv',"w", newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerows(energies)
 
 def img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=False):
     img_to_gif_stress  (path, deployment, stress_type, duration, loop)
-    if verbose: print('gif for stresses done')
+    if verbose: print('gif stresses done')
     img_to_gif_heights (path, deployment, duration, loop)
-    if verbose: print('gif for heights done')
+    if verbose: print('gif heights done')
     img_to_gif_energies(path, deployment, duration, loop)
-    if verbose: print('gif for energy done')
+    if verbose: print('gif energy done')
     
 def img_to_gif_stress(path, deployment, stress_type, duration=500, loop=2):
     path_base = f'{path}/{deployment}_deployment/stresses/{stress_type}'
     for name in ['all', 'perSteps', 'own', 'stress_curve','ordered_stress_scatter', 'stress_scatter']:
-        create_gif(f'{path_base}/jpg/{name}*.jpg',
+        _create_gif(f'{path_base}/jpg/{name}*.jpg',
                    f'{path_base}/jpg/gif/{name}.gif',
                    duration, loop)
         
 def img_to_gif_heights(path, deployment, duration=500, loop=2):
     path_base = f'{path}/{deployment}_deployment/heights'
     for name in ['heights2D', 'heights_curve', 'ordered_heights_curve']:
-        create_gif(f'{path_base}/jpg/{name}*.jpg',
+        _create_gif(f'{path_base}/jpg/{name}*.jpg',
                    f'{path_base}/jpg/gif/{name}.gif',
                    duration, loop)
     
 def img_to_gif_energies(path, deployment, duration=500, loop=2):
     path_base = f'{path}/{deployment}_deployment/energies'
-    create_gif(f'{path_base}/jpg/energies*.jpg',
+    _create_gif(f'{path_base}/jpg/energies*.jpg',
                f'{path_base}/jpg/gif/energies.gif',
                duration, loop)
 
@@ -146,7 +137,7 @@ def img_to_gif_energies(path, deployment, duration=500, loop=2):
 def linear_heights(a,b, step=1):
     '''
     from undeployed to deployed :
-    (0,4) -> [0,1,2,3,4],[100, 75, 50, 25, 0]
+    (0,4) -> [0,1,2,3,4],[100, 75, 50, 25, 0] 
     (4,0) -> [0,1,2,3,4],[0, 25, 50, 75, 100]
     '''
     active_cells    = []
@@ -191,10 +182,16 @@ def _sub_folder(path):
     os.makedirs(path+'/jpg/gif')
 
 
-def create_gif(images_name, gif_name, duration, loop):
+def _create_gif(images_name, gif_name, duration, loop):
     frames = [Image.open(image) for image in sorted(glob.glob(images_name))]
     frame_one = frames[0]
     frame_one.save(gif_name, append_images=frames[1:], save_all=True, duration=duration, loop=loop)
+    
+    
+def _write_rows(path, data):
+    with open(path,"w", newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerows(data)
     
     
 '''     
