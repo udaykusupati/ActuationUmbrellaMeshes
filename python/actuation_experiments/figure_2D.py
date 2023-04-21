@@ -4,6 +4,7 @@ import numpy as np
 import helpers_plots as help_
 import helpers_tools as help_tools
 import helpers_grid  as help_grid
+from tools import get_center_position
 
 # ======================================================================
 # ================================================================= 2D =
@@ -13,7 +14,7 @@ import helpers_grid  as help_grid
 
 def plot2D(input_data, curr_um,
            show_height=False, active_cells=[], target_percents=[], file_name='', show_plot=True):
-    center_position = help_grid.get_center_position(curr_um)
+    center_position = get_center_position(curr_um)
 
     # plot:
     ax = get_ax()
@@ -46,7 +47,7 @@ def plot2D_stress(curr_um, connectivity, init_center_pos,
     
 def projection2D(connectivity, curr_um,
                  active_cells=[], target_percents=[], file_name='', show_plot = False):
-    center_position = help_grid.get_center_position(curr_um)
+    center_position = get_center_position(curr_um)
     ax = get_ax()
     help_.ax_proj2D(ax, connectivity, active_cells, target_percents, center_position)
     
@@ -117,7 +118,8 @@ def figs_heights_curve(indexes, heights, active_cells, percents_per_steps, paths
                 idx = np.flip(np.argsort(h))
             # check to sort a also
             ax.plot(h[idx])
-            if not ordered and show_active: help_.ax_dot_active_cell(ax, a, percents_per_steps[i][step], np.array([idx, h, h]).T, markersize=1)
+            if not ordered and show_active:
+                help_.ax_dot_active_cell(ax, a, percents_per_steps[i][step], np.array([idx, h, h]).T, markersize=1)
         
         ax.set_ylim(0, max_y)
         if ordered: ax.set_title('ordered heights per unit')

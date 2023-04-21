@@ -11,12 +11,36 @@ from pipeline_helper import allEnergies
 
 import helpers_tools as help_
 import helpers_grid as help_grid
-from figure_2D import projection2D
+
+# ======================================================================
+# =============================================================== GRID =
+# ======================================================================
+def set_actives_dep_weights(numUmbrellas, *active_cells,
+                            dep_factors = np.logspace(-4, 0, 5)):
+    weights_per_cell = np.zeros(numUmbrellas)
+    weights_per_cell[active_cells] = 1
+    return np.einsum('i, j -> ij', dep_factors, weights_per_cell)
+
+def set_target_height(numUmbrellas, active_cell, target_heights):
+    target_height_multiplier = np.ones(numUmbrellas)*-1
+    target_height_multiplier[active_cell] = target_heights
+    return target_height_multiplier
+
+def percent_to_height(init_height, thickness, indexes, percents):
+    return [((1-percent/100)*(init_height[idx]-thickness)+thickness)/thickness
+            for percent,idx in zip(percents,indexes)]
+
+def get_center_position(curr_um):
+    nb_cell = curr_um.numUmbrellas()
+    center_position = np.zeros([nb_cell, 3])
+    for i in range(nb_cell):
+        top_idx = curr_um.getUmbrellaCenterJi(i, 0)
+        center_position[i] = curr_um.joint(top_idx).position
+    return center_position
 
 # ======================================================================
 # ============================================================ GENERAL =
 # ======================================================================
-
 def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_name):
     folder_name = f'{degree:0>2}_{rows:0>2}_{cols:0>2}_{folder_name}'
     path = 'outputs/'+category_name + f'/{folder_name}'
@@ -43,8 +67,8 @@ def write_metadata(path, degree, rows, cols, steps, active_cells, target_percent
         f.write("Active Cells    : " + str(active_cells)    + '\n')
         f.write("Target Percents : " + str(target_percents) + '\n')
 
-def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents, path, deployment,
-                    steps=10, verbose=True, dep='linear', prj2D=False):
+def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents, deployment, path,
+                    steps=10, verbose=True):
     dep_weights = help_grid.set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
     
     # deployent in steps
@@ -58,16 +82,16 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
 
     # write 
     _write_rows(path+'/connectivity.csv',input_data['umbrella_connectivity'])
-    _write_rows(path+'/position.csv', help_grid.get_center_position(curr_um))
+    _write_rows(path+'/position.csv', get_center_position(curr_um))
     
     stresses_types = help_.get_stresses_types()
     for s in range(steps+1):
-        if   dep=='linear'      : target_percents_step = [p*s/steps for p in target_percents]
-        elif dep=='incremental' : target_percents_step = [min(p, 100*s/steps) for p in target_percents]
-        elif dep=='max':
+        if   deployment=='linear'      : target_percents_step = [p*s/steps for p in target_percents]
+        elif deployment=='incremental' : target_percents_step = [min(p, 100*s/steps) for p in target_percents]
+        elif deployment=='max':
             max_p = max(target_percents)
             target_percents_step = [min(p, max_p*s/steps) for p in target_percents]
-        else : raise ValueError(f'deployment unknown: {dep} (choises:\'linear\',\'min\',\'max\')')
+        else : raise ValueError(f'deployment unknown: {deployment} (choises:\'linear\',\'min\',\'max\')')
         
         percents_per_steps.append(target_percents_step)
         target_heights = help_grid.percent_to_height(init_heights, plate_thickness, active_cells, target_percents_step)
@@ -80,7 +104,7 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
             heights.append(curr_um.umbrellaHeights)
             energies.append(list(allEnergies(curr_um).values()))
             for s_type in stresses_types:
-                path_stresses = path+f'/{dep}_deployment/stresses/{s_type}/values'
+                path_stresses = path+f'/{deployment}_deployment/stresses/{s_type}/values'
                 stresses_per_steps[s] = help_.get_max_stress_matrix(curr_um, s_type)
                 # write resuts
                 with open(path_stresses+f'/step_{s:0>2}.csv',"w", newline='') as csvfile:
@@ -90,17 +114,13 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
             
         else: raise ValueError(f'did not converge at step {s}.')
     
-    if prj2D: projection2D(input_data['umbrella_connectivity'],
-                            curr_um, active_cells, target_percents,
-                            file_name=path+'/projection2D.png', show_plot = False)
-    
     # write
-    _write_rows(path+f'/{dep}_deployment/heights/values/heights.csv',
+    _write_rows(path+f'/{deployment}_deployment/heights/values/heights.csv',
                 np.array(heights)-input_data['thickness'])
-    _write_rows(path+f'/{dep}_deployment/energies/values/energies.csv',
+    _write_rows(path+f'/{deployment}_deployment/energies/values/energies.csv',
                 energies)
     # write percents and active cells
-    with open(path+f'/{dep}_deployment/heights/values/percents.csv',"w", newline='') as csvfile:
+    with open(path+f'/{deployment}_deployment/heights/values/percents.csv',"w", newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(active_cells)
         writer.writerows(percents_per_steps)

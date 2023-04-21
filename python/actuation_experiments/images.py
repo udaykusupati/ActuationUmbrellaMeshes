@@ -76,10 +76,6 @@ def generate_1D(paths, deployments,
                 save_dir = '', stress_type='maxBending', show_percent=False,
                 show_plot=False, verbose=False):
     
-
-    degrees      = []
-    rows         = []
-    cols         = []
     heights      = []
     indexes      = []
     stresses     = []
@@ -92,17 +88,14 @@ def generate_1D(paths, deployments,
             connectivity_,_, heights_, active_cells_, percents_per_steps_, stresses_,  el_energies_ =\
                     helpers_images.read_results(path, dep, stress_type)
 
-            degrees.append(degree_)
-            rows.append(rows_)
-            cols.append(cols_)
             heights.append(heights_)
-            indexes.append(helpers_images.get_indexes(degree_, rows_, cols_))
+            if rows_==0 or cols_==0: indexes.append(list(range(len(heights_[0])))) # external mesh
+            else: indexes.append(helpers_images.get_indexes(degree_, rows_, cols_))
             c = np.array(connectivity_)
             stresses.append([s[c[:,0], c[:,1]]for s in stresses_])
             energies.append(el_energies_)
             active_cells.append(active_cells_)
             percents_per_steps.append(percents_per_steps_)
-
     if len(paths) == 1:
          save_dir = paths[0] + f'/{deployments[0]}_deployment'
     if save_dir!= '':

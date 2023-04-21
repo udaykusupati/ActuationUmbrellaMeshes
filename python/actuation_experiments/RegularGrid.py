@@ -8,7 +8,7 @@ from pipeline_helper import allEnergies
 sys.path.append('../UmbrellaGen')
 from grid_gen import genUmbrellaWithHeights
 
-import helpers_grid as help
+import tools
 
 class RegularGrid:
     def __init__(self, degree=3, rows=2, cols=2, height_fct=None, min_height=64):
@@ -38,7 +38,7 @@ class RegularGrid:
                                                                 use_target_surface = False)
         self.init_heights    = self.curr_um.umbrellaHeights
         self.plate_thickness = self.input_data['thickness']
-        self.init_center_pos = help.get_center_position(self.curr_um)
+        self.init_center_pos = tools.get_center_position(self.curr_um)
         
         if verbose:
             print(f"PLATE CHARACTERISTIQUES:\n\
@@ -46,9 +46,9 @@ class RegularGrid:
 \tplate edge length : {self.input_data['plate_edge_length']:.6f}")
     
     def deploy(self, active_cells, target_percents, view=None, rod_colors=None, uidBased=False, verbose=True, show_plots=False):
-        dep_weights              = help.set_actives_dep_weights(self.numUmbrellas, active_cells)
-        target_heights           = help.percent_to_height(self.init_heights, self.plate_thickness, active_cells, target_percents)
-        target_height_multiplier = help.set_target_height(self.numUmbrellas, active_cells, target_heights)
+        dep_weights              = tools.set_actives_dep_weights(self.numUmbrellas, active_cells)
+        target_heights           = tools.percent_to_height(self.init_heights, self.plate_thickness, active_cells, target_percents)
+        target_height_multiplier = tools.set_target_height(self.numUmbrellas, active_cells, target_heights)
         if rod_colors is None:
             rod_colors = get_color_field(self.curr_um, self.input_data, uidBased)
         success, eqays = deploy_umbrella_pin_rigid_motion(self.curr_um,
