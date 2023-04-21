@@ -2,16 +2,17 @@
 import numpy as np
 import csv
 
-def read_metadata(path):
-    with open(path+"/metadata.txt") as f:
+def read_metadata(path, start_line=0):
+    with open(path) as f:
         metadata = f.read().splitlines()
-    degree = int(metadata[0][8:])
-    rows = int(metadata[1][8:])
-    cols = int(metadata[2][8:])
-    steps = int(metadata[3][13:])
-    active_cells = eval(metadata[4][18:])
-    target_percents = eval(metadata[5][18:])
-    return degree, rows, cols, steps, active_cells, target_percents
+    name            =      metadata[start_line+0][8:]
+    degree          = int (metadata[start_line+1][8:])
+    rows            = int (metadata[start_line+2][8:])
+    cols            = int (metadata[start_line+3][8:])
+    steps           = int (metadata[start_line+4][8:])
+    active_cells    = eval(metadata[start_line+5][18:])
+    target_percents = eval(metadata[start_line+6][18:])
+    return name, degree, rows, cols, steps, active_cells, target_percents
 
 def read_results(path, deployment, stress_type):
     path_dep = path+f'/{deployment}_deployment'

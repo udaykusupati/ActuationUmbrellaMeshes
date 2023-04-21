@@ -59,12 +59,13 @@ def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_n
     
     return folder_name, path
 
-def write_metadata(path, degree, rows, cols, steps, active_cells, target_percents):
+def write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents):
     with open(path+"/metadata.txt", "w") as f:
+        f.write("Name  : " + folder_name + '\n')
         f.write("Degree: " + str(degree) + '\n')
         f.write("Rows  : " + str(rows)   + '\n')
         f.write("Cols  : " + str(cols)   + '\n')
-        f.write("Steps      : " + str(steps)      + '\n')
+        f.write("Steps : " + str(steps)      + '\n')
         f.write("Active Cells    : " + str(active_cells)    + '\n')
         f.write("Target Percents : " + str(target_percents) + '\n')
 

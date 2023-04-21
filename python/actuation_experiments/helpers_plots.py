@@ -39,7 +39,7 @@ def ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, 
 def ax_proj2D(ax, connectivity, active_cells, percents, positions):
     arms_pos = _get_arms_pos(connectivity, positions)
     for arm in arms_pos:
-        ax.plot(arm[:,0], arm[:,1], c='black')#, linewidth=8)
+        ax.plot(arm[:,0], arm[:,1], c='black', linewidth=0.85)
         ax_dot_active_cell(ax, active_cells, percents, positions)
 
 # ----------------------------------------------------------------------
@@ -74,16 +74,14 @@ def _get_arms_pos(connectivity, positions):
     return arms_pos
 
 def _get_arms_color(connectivity, s_matrix, min_, max_):
-    try: # chek if max_ is float or not:
-        int(max_)
-        return [_color_map(s_matrix[i,j], min_, max_, cmap_name='') for i,j in connectivity]
-    except TypeError: # it is not
-        return [_color_map(s_matrix[i,j], 0, max_[arm]) for arm,(i,j) in enumerate(connectivity)]
+    if   isinstance(max_, float): return [_color_map(s_matrix[i,j], min_, max_, cmap_name='') for i,j in connectivity]
+    elif isinstance(max_, np.ndarray) : return [_color_map(s_matrix[i,j], 0, max_[arm]) for arm,(i,j) in enumerate(connectivity)]
+    else: raise ValueError(f'max value should either be a `float` or a `np.ndarray`, is is a {type(max_)}')
 
 def _color_map(value, min_, max_, cmap_name='', nombre=256):
     if max_ == min_:
-        if max_ == 0: return 0,1,0.25 # no stress at all -> "green"
-        else:         return 0,0,0    # max stress/height everywhere
+        if max_ == 0: return 0,1,0.25      # no stress at all             -> 'green'
+        else:         return 0.8, 0.8, 0.8 # max stress/height everywhere -> 'lightgrey'
 
     p = (value-min_)/(max_-min_)
     if cmap_name!='':

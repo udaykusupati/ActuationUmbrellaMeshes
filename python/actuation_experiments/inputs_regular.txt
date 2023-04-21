@@ -1,0 +1,31 @@
+Name  : line
+Degree: 3
+Rows  : 3
+Cols  : 1
+Steps : 2
+Active Cells    : [0, 5]
+Target Percents : [100, 0]
+
+Name  : border
+Degree: 3
+Rows  : 3
+Cols  : 2
+Steps : 2
+Active Cells    : [0, 6, 4, 3]
+Target Percents : [100, 100, 0, 0]
+
+Name  : border
+Degree: 3
+Rows  : 4
+Cols  : 2
+Steps : 2
+Active Cells    : [0, 6, 4, 3]
+Target Percents : [100, 100, 0, 0]
+
+Name  : border
+Degree: 3
+Rows  : 5
+Cols  : 2
+Steps : 10
+Active Cells    : [0, 6, 4, 3]
+Target Percents : [100, 100, 0, 0]

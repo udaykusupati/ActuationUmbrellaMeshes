@@ -84,7 +84,7 @@ def generate_1D(paths, deployments,
     percents_per_steps = []
 
     for path, dep in zip(paths, deployments):
-            degree_, rows_, cols_, *_  = helpers_images.read_metadata(path)
+            _, degree_, rows_, cols_, *_  = helpers_images.read_metadata(path+'/metadata.txt')
             connectivity_,_, heights_, active_cells_, percents_per_steps_, stresses_,  el_energies_ =\
                     helpers_images.read_results(path, dep, stress_type)
 

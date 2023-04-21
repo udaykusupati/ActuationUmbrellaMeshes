@@ -1,7 +1,9 @@
 from tools import *
 from images import *
+from helpers_tools import get_stresses_types
 from figure_2D import plot2D, projection2D
 from RegularGrid import RegularGrid
+from helpers_images import read_metadata
 
 import mesh
 import sys
@@ -20,7 +22,7 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
                                               deployment,
                                               name)
 
-    write_metadata(path, degree, rows, cols, steps, active_cells, target_percents)
+    write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents)
     
     
     grid = RegularGrid(degree=degree,
@@ -55,23 +57,25 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
                         grid.curr_um, active_cells, target_percents,
                         file_name=path+'/projection2D.png', show_plot = False)
     
+    img_duration = 5000/steps
     stress_type = 'maxBending'
-    generate_2D(path,
-                deployment,
-                stress_type=stress_type,
-                show_percent=False,
-                show_plot=False,
-                verbose=verbose)
-    
-    generate_1D([path],
-                [deployment],
-                save_dir = '', 
-                stress_type=stress_type,
-                show_percent=False,
-                show_plot=False,
-                verbose=verbose)
-    
-    img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=verbose)
+    for stress_type in ['VonMises','maxBending','Twisting']:
+        generate_2D(path,
+                    deployment,
+                    stress_type=stress_type,
+                    show_percent=False,
+                    show_plot=False,
+                    verbose=verbose)
+
+        generate_1D([path],
+                    [deployment],
+                    save_dir = '', 
+                    stress_type=stress_type,
+                    show_percent=False,
+                    show_plot=False,
+                    verbose=verbose)
+
+        img_to_gif(path, deployment, stress_type, duration=img_duration, loop=2, verbose=verbose)
     
     return
 
@@ -115,7 +119,7 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
     init_center_pos = get_center_position(curr_um)
     init_heights = curr_um.umbrellaHeights
     
-    write_metadata(path, degree, rows, cols, steps, active_cells, target_percents)
+    write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents)
     
     plot2D(input_data,
            curr_um,
@@ -156,14 +160,22 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
     img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=verbose)
     
     
-def read_inputs(path):
-    with open(path) as f:
-        inputs = f.read().splitlines()
-    name = inputs[0][6:]
-    degree = int(inputs[1][8:])
-    rows = int(inputs[2][6:])
-    cols = int(inputs[3][6:])
-    steps = int(inputs[4][7:])
-    active_cells = eval(inputs[5][14:])
-    target_percents = eval(inputs[6][17:])
-    return name, degree, rows, cols, steps, active_cells, target_percents
+def deploy_inputs_grid():
+    datas = _read_inputs('./inputs_regular.txt')
+    
+    category = 'regular_grid'
+    for name, degree, rows, cols, steps, active_cells, target_percents in datas:
+        print(f'name: {name}, ({rows=}, {cols=}):')
+        for deployment in ['linear', 'incremental']:
+            regular_grid(degree, rows, cols, category, name, steps, deployment, active_cells, target_percents)
+            print(f'      done with {deployment=}')
+            
+def _read_inputs(path):
+    lines_per_struct = 8
+    with open(path, 'r') as f:
+        nb_lines = len(f.read().splitlines())
+        
+    datas = []
+    for i in range(0, nb_lines, lines_per_struct):
+        datas.append(list(read_metadata(path, start_line=i)))
+    return datas

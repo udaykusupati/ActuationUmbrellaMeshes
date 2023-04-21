@@ -24,12 +24,27 @@ class RegularGrid:
         self.min_height      = min_height
         self.height_scales   = height_fct(self.numUmbrellas) if height_fct is not None else [1]*self.numUmbrellas
     
-    def generate_mesh(self, json_filename='testing', verbose=True):
+    def generate_mesh(self, json_filename='00_testing', plate_thickness=3, scaling=True, verbose=True):
+        '''
+        with scaling=False:
+            - for 1x1:
+                PLATE CHARACTERISTIQUES:
+                    plate thickness   : 0.037585
+                    plate edge length : 0.375853
+
+            - for 10x10:
+                PLATE CHARACTERISTIQUES:
+                    plate thickness   : 0.007326
+                    plate edge length : 0.073259
+        '''
         genUmbrellaWithHeights(self.degree,
                                self.rows,
                                self.cols,
                                self.height_scales,
                                self.min_height,
+                               plate_thickness=plate_thickness, # default is 3.0 in `genUmbrellaWithHeights`
+                               edge_length=10*plate_thickness,  # default is 30
+                               scaling=scaling,
                                json_filename=json_filename)
         input_path = f'../UmbrellaGen/{json_filename}.json.gz'
         
