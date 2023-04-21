@@ -42,7 +42,8 @@ def get_center_position(curr_um):
 # ============================================================ GENERAL =
 # ======================================================================
 def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_name):
-    folder_name = f'{degree:0>2}_{rows:0>2}_{cols:0>2}_{folder_name}'
+    folder_name = f'{degree:0>2}_{rows:0>2}_{cols:0>2}_{folder_name}' if rows!=0 and cols!=0 \
+             else f'{degree:0>2}_{folder_name}'
     path = 'outputs/'+category_name + f'/{folder_name}'
     if not os.path.exists(path): os.makedirs(path)
 
@@ -91,7 +92,7 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
         elif deployment=='max':
             max_p = max(target_percents)
             target_percents_step = [min(p, max_p*s/steps) for p in target_percents]
-        else : raise ValueError(f'deployment unknown: {deployment} (choises:\'linear\',\'min\',\'max\')')
+        else : raise ValueError(f'deployment unknown: {deployment} (choises:\'linear\',\'incremental\',\'max\')')
         
         percents_per_steps.append(target_percents_step)
         target_heights = help_grid.percent_to_height(init_heights, plate_thickness, active_cells, target_percents_step)
@@ -135,7 +136,7 @@ def img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=Fals
     
 def img_to_gif_stress(path, deployment, stress_type, duration=500, loop=2):
     path_base = f'{path}/{deployment}_deployment/stresses/{stress_type}'
-    for name in ['all', 'perSteps', 'own', 'stress_curve','ordered_stress_scatter', 'stress_scatter']:
+    for name in ['overall', 'perSteps', 'own', 'stress_curve','ordered_stress_scatter', 'stress_scatter']:
         _create_gif(f'{path_base}/jpg/{name}*.jpg',
                    f'{path_base}/jpg/gif/{name}.gif',
                    duration, loop)

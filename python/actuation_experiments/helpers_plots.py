@@ -12,7 +12,7 @@ def ax_annotate_index(ax, positions):
 def ax_annotate_height(ax, heights, positions):
     for [x,y,z], h in zip(positions, heights):
         c = _color_map(h, min(heights), max(heights))
-        ax.annotate(f'[{h:.2f}]', (x,y), textcoords='offset points', xytext=(0,-12), ha='center', c=c)
+        ax.annotate(f'[{h:.2f}]', (x,y), textcoords='offset points', xytext=(0,-2), ha='center', c=c)
 
 def ax_annotate_active(ax, active_cells, target_percents, positions):
     for i, p in zip(active_cells, target_percents):
@@ -23,9 +23,9 @@ def ax_plot_edges(ax, input_data):
     for e in _get_edges(input_data):
         ax.plot(e[:, 0], e[:, 1], color="lightblue")
 
-def ax_dot_active_cell(ax, active_cells, target_percents, positions, markersize=1.4, edgecolor='white'):
+def ax_dot_active_cell(ax, active_cells, target_percents, positions, markersize=1, edgecolor='black'):
     s = plt.rcParams['lines.markersize']**markersize # default s value is `rcParams['lines.markersize'] ** 2`
-    lw = s/15 # width of marker's edge
+    lw = s/20 # width of marker's edge
     for i, p in zip(active_cells, target_percents):
         r = p/100
         [x,y,_] = positions[i]
@@ -33,7 +33,7 @@ def ax_dot_active_cell(ax, active_cells, target_percents, positions, markersize=
 
 def ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, percents, positions, show_percent):
     _ax_arms_as_stress(ax, connectivity, stress_matrix, min_, max_, positions)
-    ax_dot_active_cell(ax, active_cells, percents, positions)
+    ax_dot_active_cell(ax, active_cells, percents, positions, markersize=0.8)
     _ax_show_percent(ax, show_percent, active_cells, percents, positions)
 
 def ax_proj2D(ax, connectivity, active_cells, percents, positions):

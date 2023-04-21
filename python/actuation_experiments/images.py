@@ -54,7 +54,7 @@ def generate_2D(path, deployment,
         
         # normalized with general extrems values
         figure_2D.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,
-                              s_matrix, deployed*min_stress_all, deployed*max_stress_all, show_plot, title_step_s.format('all'), path_s, 'all')
+                              s_matrix, deployed*min_stress_all, deployed*max_stress_all, show_plot, title_step_s.format('overall'), path_s, 'overall')
         
         # normalized with step extrems values
         figure_2D.fig_arm_stresses(connectivity, active_cells, percents, init_center_pos, show_percent,

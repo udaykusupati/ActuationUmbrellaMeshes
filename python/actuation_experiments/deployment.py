@@ -58,7 +58,6 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
     stress_type = 'maxBending'
     generate_2D(path,
                 deployment,
-                save_dir = '', 
                 stress_type=stress_type,
                 show_percent=False,
                 show_plot=False,
@@ -66,6 +65,7 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
     
     generate_1D([path],
                 [deployment],
+                save_dir = '', 
                 stress_type=stress_type,
                 show_percent=False,
                 show_plot=False,
@@ -88,23 +88,27 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
                                               deployment,
                                               name)
     
-    # read existing mesh
-    base_mesh = mesh.Mesh(mesh_path)
-    V, F = base_mesh.vertices(), base_mesh.elements()
-    V_3d = np.zeros((len(V), 3))
-    V_3d[:, :2] = V
-    edge_length = np.linalg.norm(V_3d[F][0, 0] - V_3d[F][0, 1])
-    numUmbrellas = len(F)
-    base_mesh_gen = V_3d.tolist(), F.tolist()
+    if mesh_path.endswith('.obj'):
+        # read existing mesh
+        base_mesh = mesh.Mesh(mesh_path)
+        V, F = base_mesh.vertices(), base_mesh.elements()
+        V_3d = np.zeros((len(V), 3))
+        V_3d[:, :2] = V
+        edge_length = np.linalg.norm(V_3d[F][0, 0] - V_3d[F][0, 1])
+        numUmbrellas = len(F)
+        base_mesh_gen = V_3d.tolist(), F.tolist()
 
-    grid_gen.genUmbrellaWithHeights(degree, rows, cols,
-                                    height_scales=None if heights_fct==None else heights_fct(numUmbrellas),
-                                    minHeight=min_height,
-                                    base_mesh=base_mesh_gen,
-                                    edge_length=edge_length,
-                                    json_filename=folder_name)
+        grid_gen.genUmbrellaWithHeights(degree, rows, cols,
+                                        height_scales=None if heights_fct==None else heights_fct(numUmbrellas),
+                                        minHeight=min_height,
+                                        base_mesh=base_mesh_gen,
+                                        edge_length=edge_length,
+                                        json_filename=folder_name)
     
-    input_path = '../UmbrellaGen/{}.json.gz'.format(folder_name)
+        input_path = '../UmbrellaGen/{}.json.gz'.format(folder_name)
+    elif mesh_path.endswith('.json.gz'): input_path = mesh_path
+    else: raise ValueError(f'mesh file not recognized: {mesh_path}, the extention should either be `.obj` or `.json.gz`.')
+    
     io, input_data, target_mesh, curr_um, plate_thickness_scaled, target_height_multiplier = \
         configuration.parse_input(input_path, handleBoundary = False, isHex = (degree == 6), use_target_surface = False)
 
@@ -121,9 +125,9 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
            file_name = path+'/undeployed.png',
            show_plot=verbose)
     
-    dep_weights              = set_actives_dep_weights(numUmbrellas, active_cells)
+    dep_weights              = set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
     target_heights           = percent_to_height(init_heights, plate_thickness_scaled, active_cells, target_percents)
-    target_height_multiplier = set_target_height(numUmbrellas, active_cells, target_heights)
+    target_height_multiplier = set_target_height(curr_um.numUmbrellas(), active_cells, target_heights)
     
     deploy_in_steps(curr_um,
                     input_data,
