@@ -10,6 +10,8 @@ import figure_2D
 # ======================================================================
 def generate_2D(path, deployment,
                 stress_type='maxBending', show_percent=False, show_plot=False, verbose=False):
+    # ensure plt.rcParams.update() to update for next plots
+    figure_2D.fig_empty()
     
     connectivity,        \
     init_center_pos,     \
@@ -75,7 +77,8 @@ def generate_2D(path, deployment,
 def generate_1D(paths, deployments,
                 save_dir = '', stress_type='maxBending', show_percent=False,
                 show_plot=False, verbose=False):
-    
+    # ensure plt.rcParams.update() to update for next plots
+    figure_2D.fig_empty()
     heights      = []
     indexes      = []
     stresses     = []

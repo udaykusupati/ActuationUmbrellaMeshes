@@ -1,9 +1,7 @@
 from tools import *
 from images import *
-from helpers_tools import get_stresses_types
 from figure_2D import plot2D, projection2D
 from RegularGrid import RegularGrid
-from helpers_images import read_metadata
 
 import mesh
 import sys
@@ -60,6 +58,7 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
     img_duration = 5000/steps
     stress_type = 'maxBending'
     for stress_type in ['VonMises','maxBending','Twisting']:
+        if verbose: print(f'-> generate images for {stress_type}.')
         generate_2D(path,
                     deployment,
                     stress_type=stress_type,
@@ -145,37 +144,19 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
                     verbose=verbose)
     
     stress_type='maxBending'
-    generate_2D(path,
-                deployment,
-                stress_type=stress_type,
-                show_percent=False,
-                show_plot=False,
-                verbose=verbose)
-    generate_1D([path], [deployment],
-                save_dir = '',
-                stress_type=stress_type,
-                show_percent=False,
-                show_plot=False,
-                verbose=verbose)
-    img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=verbose)
-    
-    
-def deploy_inputs_grid():
-    datas = _read_inputs('./inputs_regular.txt')
-    
-    category = 'regular_grid'
-    for name, degree, rows, cols, steps, active_cells, target_percents in datas:
-        print(f'name: {name}, ({rows=}, {cols=}):')
-        for deployment in ['linear', 'incremental']:
-            regular_grid(degree, rows, cols, category, name, steps, deployment, active_cells, target_percents)
-            print(f'      done with {deployment=}')
-            
-def _read_inputs(path):
-    lines_per_struct = 8
-    with open(path, 'r') as f:
-        nb_lines = len(f.read().splitlines())
-        
-    datas = []
-    for i in range(0, nb_lines, lines_per_struct):
-        datas.append(list(read_metadata(path, start_line=i)))
-    return datas
+    img_duration = 5000/steps
+    stress_type = 'maxBending'
+    for stress_type in ['VonMises','maxBending','Twisting']:
+        generate_2D(path,
+                    deployment,
+                    stress_type=stress_type,
+                    show_percent=False,
+                    show_plot=False,
+                    verbose=verbose)
+        generate_1D([path], [deployment],
+                    save_dir = '',
+                    stress_type=stress_type,
+                    show_percent=False,
+                    show_plot=False,
+                    verbose=verbose)
+        img_to_gif(path, deployment, stress_type, duration=img_duration, loop=2, verbose=verbose)

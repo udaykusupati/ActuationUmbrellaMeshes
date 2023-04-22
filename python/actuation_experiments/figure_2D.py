@@ -190,10 +190,17 @@ def figs_energy_curve(energies, paths, show_plot=False):
         if show_plot: plt.show()
         else : plt.close()
 
+def fig_empty():
+    '''
+    to ensure the matplotlib settings are set
+    '''
+    ax = get_ax()
+    ax.plot([1,1])
+    plt.tight_layout()
+    plt.close()
 
 # ---------- HELPERS ----------
 def get_ax(fig_size=1, dpi=8):
-    # plt.rcParams.update({'font.size': 2})
     _, ax = plt.subplots(figsize=(fig_size, fig_size), dpi=72*dpi)
     plt.rcParams.update({'font.size': 2})
     return ax

@@ -66,8 +66,8 @@ def write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, t
         f.write("Rows  : " + str(rows)   + '\n')
         f.write("Cols  : " + str(cols)   + '\n')
         f.write("Steps : " + str(steps)      + '\n')
-        f.write("Active Cells    : " + str(active_cells)    + '\n')
-        f.write("Target Percents : " + str(target_percents) + '\n')
+        f.write("Active Cells   : " + str(active_cells)    + '\n')
+        f.write("Target Percents: " + str(target_percents) + '\n')
 
 def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells, target_percents, deployment, path,
                     steps=10, verbose=True):
@@ -128,32 +128,26 @@ def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_c
         writer.writerows(percents_per_steps)
 
 def img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=False):
-    img_to_gif_stress  (path, deployment, stress_type, duration, loop)
-    if verbose: print('gif stresses done')
-    img_to_gif_heights (path, deployment, duration, loop)
-    if verbose: print('gif heights done')
-    img_to_gif_energies(path, deployment, duration, loop)
-    if verbose: print('gif energy done')
+    path = f'{path}/{deployment}_deployment'
+    img_to_gif_1D(path, stress_type, duration=duration, loop=loop)
+    if verbose: print('gif 1D done')
+    img_to_gif_2D(path, stress_type, duration=duration, loop=loop)
+    if verbose: print('gif 2D done')
+
+def img_to_gif_1D(path, stress_type, duration=500, loop=2):
+    _img_to_gif_stress_1D (path, stress_type, duration=duration, loop=loop)
+    _img_to_gif_heights_1D(path,              duration=duration, loop=loop)
+    _img_to_gif_energies  (path,              duration=duration, loop=loop)
     
-def img_to_gif_stress(path, deployment, stress_type, duration=500, loop=2):
-    path_base = f'{path}/{deployment}_deployment/stresses/{stress_type}'
-    for name in ['overall', 'perSteps', 'own', 'stress_curve','ordered_stress_scatter', 'stress_scatter']:
-        _create_gif(f'{path_base}/jpg/{name}*.jpg',
-                   f'{path_base}/jpg/gif/{name}.gif',
-                   duration, loop)
-        
-def img_to_gif_heights(path, deployment, duration=500, loop=2):
-    path_base = f'{path}/{deployment}_deployment/heights'
-    for name in ['heights2D', 'heights_curve', 'ordered_heights_curve']:
-        _create_gif(f'{path_base}/jpg/{name}*.jpg',
-                   f'{path_base}/jpg/gif/{name}.gif',
-                   duration, loop)
+def img_to_gif_2D(path, stress_type, duration=500, loop=2):
+    _img_to_gif_stress_2D (path, stress_type, duration=duration, loop=loop)
+    _img_to_gif_heights_2D(path,              duration=duration, loop=loop)
     
-def img_to_gif_energies(path, deployment, duration=500, loop=2):
-    path_base = f'{path}/{deployment}_deployment/energies'
-    _create_gif(f'{path_base}/jpg/energies*.jpg',
-               f'{path_base}/jpg/gif/energies.gif',
-               duration, loop)
+def img_to_gif_all(path, gif_name, duration=500, loop=2):
+    '''
+    create gif `gif_name` with all files at path
+    '''
+    _create_gif(f'{path}/*.*', f'{path}/{gif_name}.gif', duration, loop)
 
         
 def linear_heights(a,b, step=1):
@@ -209,6 +203,33 @@ def _create_gif(images_name, gif_name, duration, loop):
     frame_one = frames[0]
     frame_one.save(gif_name, append_images=frames[1:], save_all=True, duration=duration, loop=loop)
     
+def _gif_list(path, ls, duration, loop):
+    for name in ls:
+        _create_gif(f'{path}/jpg/{name}*.jpg',
+                   f'{path}/jpg/gif/{name}.gif',
+                   duration, loop)
+def _img_to_gif_stress_1D(path, stress_type, duration=500, loop=2):
+    path_base = f'{path}/stresses/{stress_type}'
+    names = ['stress_curve','ordered_stress_scatter', 'stress_scatter']
+    _gif_list(path_base, names, duration, loop)
+def _img_to_gif_stress_2D(path, stress_type, duration=500, loop=2):
+    path_base = f'{path}/stresses/{stress_type}'
+    names = ['overall', 'perSteps', 'own',]
+    _gif_list(path_base, names, duration, loop)
+        
+def _img_to_gif_heights_1D(path, duration=500, loop=2):
+    path_base = f'{path}/heights'
+    names = ['heights_curve', 'ordered_heights_curve']
+    _gif_list(path_base, names, duration, loop)
+def _img_to_gif_heights_2D(path, duration=500, loop=2):
+    path_base = f'{path}/heights'
+    names = ['heights2D']
+    _gif_list(path_base, names, duration, loop)
+    
+def _img_to_gif_energies(path, duration=500, loop=2):
+    path_base = f'{path}/energies'
+    names = ['energies']
+    _gif_list(path_base, names, duration, loop)
     
 def _write_rows(path, data):
     with open(path,"w", newline='') as csvfile:

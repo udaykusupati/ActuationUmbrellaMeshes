@@ -1,0 +1,111 @@
+Name  : row_d0_u1
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 1]
+Target Percents: [100, 0]
+
+Name  : row_d0_u2
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 2]
+Target Percents: [100, 0]
+
+Name  : row_d0_u3
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 3]
+Target Percents: [100, 0]
+
+Name  : row_d0_u4
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 4]
+Target Percents: [100, 0]
+
+Name  : row_d0_u5
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 5]
+Target Percents: [100, 0]
+
+Name  : row_d0_u6
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 6]
+Target Percents: [100, 0]
+
+Name  : row_d0_u7
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 7]
+Target Percents: [100, 0]
+===================================================================================
+Name  : col_d0_u1
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 1]
+Target Percents: [100, 0]
+
+Name  : col_d0_u2
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 3]
+Target Percents: [100, 0]
+
+Name  : col_d0_u3
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 2]
+Target Percents: [100, 0]
+
+Name  : col_d0_u4
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 4]
+Target Percents: [100, 0]
+
+Name  : col_d0_u5
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 5]
+Target Percents: [100, 0]
+
+Name  : col_d0_u6
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 7]
+Target Percents: [100, 0]
+
+Name  : col_d0_u7
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 6]
+Target Percents: [100, 0]

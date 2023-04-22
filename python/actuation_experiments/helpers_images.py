@@ -10,8 +10,8 @@ def read_metadata(path, start_line=0):
     rows            = int (metadata[start_line+2][8:])
     cols            = int (metadata[start_line+3][8:])
     steps           = int (metadata[start_line+4][8:])
-    active_cells    = eval(metadata[start_line+5][18:])
-    target_percents = eval(metadata[start_line+6][18:])
+    active_cells    = eval(metadata[start_line+5][17:])
+    target_percents = eval(metadata[start_line+6][17:])
     return name, degree, rows, cols, steps, active_cells, target_percents
 
 def read_results(path, deployment, stress_type):

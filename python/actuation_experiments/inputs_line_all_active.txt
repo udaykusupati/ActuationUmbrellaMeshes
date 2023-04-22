@@ -1,0 +1,111 @@
+Name  : row_allActive_0to1
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 1]
+Target Percents: [0.0, 100.0]
+
+Name  : row_allActive_0to2
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 1, 2]
+Target Percents: [0.0, 50.0, 100.0]
+
+Name  : row_allActive_0to3
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 1, 2, 3]
+Target Percents: [0.0, 33.33333333333333, 66.66666666666666, 100.0]
+
+Name  : row_allActive_0to4
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 1, 2, 3, 4]
+Target Percents: [0.0, 25.0, 50.0, 75.0, 100.0]
+
+Name  : row_allActive_0to5
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 1, 2, 3, 4, 5]
+Target Percents: [0.0, 20.0, 40.0, 60.0, 80.0, 100.0]
+
+Name  : row_allActive_0to6
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 1, 2, 3, 4, 5, 6]
+Target Percents: [0.0, 16.666666666666664, 33.33333333333333, 50.0, 66.66666666666666, 83.33333333333334, 100.0]
+
+Name  : row_allActive_0to7
+Degree: 3
+Rows  : 1
+Cols  : 4
+Steps : 10
+Active Cells   : [0, 1, 2, 3, 4, 5, 6, 7]
+Target Percents: [0.0, 14.285714285714285, 28.57142857142857, 42.857142857142854, 57.14285714285714, 71.42857142857143, 85.71428571428571, 100.0]
+===================================================================================
+Name  : col_allActive_0to1
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 1]
+Target Percents: [0.0, 100.0]
+
+Name  : col_allActive_0to2
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 1, 3]
+Target Percents: [0.0, 50.0, 100.0]
+
+Name  : col_allActive_0to3
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 1, 3, 2]
+Target Percents: [0.0, 33.33333333333333, 66.66666666666666, 100.0]
+
+Name  : col_allActive_0to4
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 1, 3, 2, 4]
+Target Percents: [0.0, 25.0, 50.0, 75.0, 100.0]
+
+Name  : col_allActive_0to5
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 1, 3, 2, 4, 5]
+Target Percents: [0.0, 20.0, 40.0, 60.0, 80.0, 100.0]
+
+Name  : col_allActive_0to6
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 1, 3, 2, 4, 5, 7]
+Target Percents: [0.0, 16.666666666666664, 33.33333333333333, 50.0, 66.66666666666666, 83.33333333333334, 100.0]
+
+Name  : col_allActive_0to7
+Degree: 3
+Rows  : 4
+Cols  : 1
+Steps : 10
+Active Cells   : [0, 1, 3, 2, 4, 5, 7, 6]
+Target Percents: [0.0, 14.285714285714285, 28.57142857142857, 42.857142857142854, 57.14285714285714, 71.42857142857143, 85.71428571428571, 100.0]
