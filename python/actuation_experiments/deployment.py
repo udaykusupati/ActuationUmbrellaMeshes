@@ -58,7 +58,7 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
     img_duration = 5000/steps
     stress_type = 'maxBending'
     for stress_type in ['VonMises','maxBending','Twisting']:
-        if verbose: print(f'-> generate images for {stress_type}.')
+        if verbose: print(f'\n-> generate images for {stress_type}.')
         generate_2D(path,
                     deployment,
                     stress_type=stress_type,
