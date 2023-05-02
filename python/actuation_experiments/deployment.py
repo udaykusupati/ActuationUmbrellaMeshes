@@ -143,9 +143,8 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
                     steps=steps,
                     verbose=verbose)
     
-    stress_type='maxBending'
     img_duration = 5000/steps
-    stress_type = 'maxBending'
+    stress_type = 'VonMises'
     for stress_type in ['VonMises','maxBending','Twisting']:
         if verbose: print(f'\n-> generate images for {stress_type}.')
         generate_2D(path,

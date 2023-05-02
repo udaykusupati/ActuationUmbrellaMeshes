@@ -9,7 +9,7 @@ import figure_2D
 # ==================================================== GENERATE IMAGES =
 # ======================================================================
 def generate_2D(path, deployment,
-                stress_type='maxBending', show_percent=False, show_plot=False, verbose=False):
+                stress_type='VonMises', show_percent=False, show_plot=False, verbose=False):
     # ensure plt.rcParams.update() to update for next plots
     figure_2D.fig_empty()
     
@@ -75,7 +75,7 @@ def generate_2D(path, deployment,
         if verbose: print(f'2D images for step {step:0>2} successfully saved.')
 
 def generate_1D(paths, deployments,
-                save_dir = '', stress_type='maxBending', show_percent=False,
+                save_dir = '', stress_type='VonMises', show_percent=False,
                 show_plot=False, verbose=False):
     # ensure plt.rcParams.update() to update for next plots
     figure_2D.fig_empty()
