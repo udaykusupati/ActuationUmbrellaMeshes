@@ -8,7 +8,7 @@ import figure_2D
 # ======================================================================
 # ==================================================== GENERATE IMAGES =
 # ======================================================================
-def generate_2D(path, deployment,
+def generate_2D(path, phase, deployment,
                 stress_type='VonMises', show_percent=False, show_plot=False, verbose=False):
     # ensure plt.rcParams.update() to update for next plots
     figure_2D.fig_empty()
@@ -20,7 +20,7 @@ def generate_2D(path, deployment,
     percents_per_steps,  \
     stresses_per_steps,  \
     el_energies =        \
-        helpers_images.read_results(path, deployment, stress_type)
+        helpers_images.read_results(path, phase, deployment, stress_type)
 
     steps = stresses_per_steps.shape[0]-1
     max_stresses = []
@@ -35,13 +35,14 @@ def generate_2D(path, deployment,
     path_stresses = []
     path_heights = []
     for f in ['jpg', 'png']:
-        path_stresses.append(f'{path}/{deployment}_deployment/stresses/{stress_type}/{f}'+'/{{}}_{:0>3.0f}Deployed'+f'.{f}')
-        path_heights.append(f'{path}/{deployment}_deployment/heights/{f}'+'/{{}}_{:0>3.0f}Deployed'+f'.{f}')
+        path_stresses.append(f'{path}/{deployment}_deployment/stresses/{stress_type}/{f}/phase{phase}_'+'{{}}_{:0>3.0f}Deployed'+f'.{f}')
+        path_heights.append(f'{path}/{deployment}_deployment/heights/{f}/phase{phase}_'+'{{}}_{:0>3.0f}Deployed'+f'.{f}')
     
     # random perturbations does affect undeployed state
     deployed = False
     
     for step, (s_matrix, percents) in enumerate(zip(stresses_per_steps,percents_per_steps)):
+        if phase>0 and step==0: continue
         min_stress_step = s_matrix[s_matrix != 0].min()
         max_stress_step = s_matrix[s_matrix != 0].max()
         max_stresses.append(max_stress_step)
@@ -79,6 +80,7 @@ def generate_1D(paths, deployments,
                 show_plot=False, verbose=False):
     # ensure plt.rcParams.update() to update for next plots
     figure_2D.fig_empty()
+    
     heights      = []
     indexes      = []
     stresses     = []
@@ -87,18 +89,33 @@ def generate_1D(paths, deployments,
     percents_per_steps = []
 
     for path, dep in zip(paths, deployments):
-            _, degree_, rows_, cols_, *_  = helpers_images.read_metadata(path+'/metadata.txt')
-            connectivity_,_, heights_, active_cells_, percents_per_steps_, stresses_,  el_energies_ =\
-                    helpers_images.read_results(path, dep, stress_type)
+            _, degree_, rows_, cols_, _,phases, *_  = helpers_images.read_metadata(path+'/metadata.txt')
+            heights_phase      = []
+            indexes_phase      = []
+            stresses_phase     = []
+            energies_phase     = []
+            active_cells_phase = []
+            percents_per_steps_phase = []
+            for phase in range(phases):
+                connectivity_, _, heights_, active_cells_, percents_per_steps_, stresses_,  el_energies_ =\
+                        helpers_images.read_results(path, phase+1, dep, stress_type)
 
-            heights.append(heights_)
-            if rows_==0 or cols_==0: indexes.append(list(range(len(heights_[0])))) # external mesh
-            else: indexes.append(helpers_images.get_indexes(degree_, rows_, cols_))
-            c = np.array(connectivity_)
-            stresses.append([s[c[:,0], c[:,1]]for s in stresses_])
-            energies.append(el_energies_)
-            active_cells.append(active_cells_)
-            percents_per_steps.append(percents_per_steps_)
+                heights_phase.append(heights_)
+                if rows_==0 or cols_==0: indexes_phase.append(list(range(len(heights_[0])))) # external mesh
+                else: indexes_phase.append(helpers_images.get_indexes(degree_, rows_, cols_))
+                c = np.array(connectivity_)
+                stresses_phase.append([s[c[:,0], c[:,1]]for s in stresses_])
+                energies_phase.append(el_energies_)
+                active_cells_phase.append(active_cells_)
+                percents_per_steps_phase.append(percents_per_steps_)
+            
+            heights.append(heights_phase)
+            indexes.append(indexes_phase)
+            stresses.append(stresses_phase)
+            energies.append(energies_phase)
+            active_cells.append(active_cells_phase)
+            percents_per_steps.append(percents_per_steps_phase)
+                
     if len(paths) == 1:
          save_dir = paths[0] + f'/{deployments[0]}_deployment'
     if save_dir!= '':
@@ -114,6 +131,10 @@ def generate_1D(paths, deployments,
         path_s = save_dir + f'/stresses/{stress_type}'
     else : path_e = path_h = path_s = ''
 
+    
+    # print(heights)
+    # print(active_cells)
+    
     figure_2D.figs_heights_curve(indexes,
                                  heights,
                                  active_cells,
@@ -151,5 +172,5 @@ def _add_jpg_png(path=''):
     paths = []
     if path != '':
         for f in ['jpg', 'png']:
-            paths.append(f'{path}/{f}'+'/{{}}_{:0>3.0f}Deployed'+f'.{f}')
+            paths.append(f'{path}/{f}/'+'phase{}_{{}}_{:0>3.0f}Deployed'+f'.{f}')
     return paths

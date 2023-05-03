@@ -107,88 +107,111 @@ def fig_height2D(connectivity, active_cells, heights, positions, show_plot, titl
 
 #------------------ CURVE ------------------
 
-def figs_heights_curve(indexes, heights, active_cells, percents_per_steps, paths, show_active=True, ordered=True, show_plot=False):
-    max_x, max_y = _maxX_maxY(heights)
-    for step, heights_ in enumerate(np.array(heights).transpose((1,0,2))):
-        paths_s = [path.format(step/max_x*100) for path in paths]
-        
-        ax = get_ax()
-        for i,(idx, h, a) in enumerate(zip(indexes, heights_, active_cells)):
-            if ordered:
-                idx = np.flip(np.argsort(h))
-            # check to sort a also
-            ax.plot(h[idx], linewidth=0.85)
-            if not ordered and show_active:
-                help_.ax_dot_active_cell(ax, a, percents_per_steps[i][step], np.array([idx, h, h]).T, markersize=1)
-        
-        ax.set_ylim(0, max_y)
-        if ordered: ax.set_title('ordered heights per unit')
-        else: ax.set_title('heights per unit')
-        plt.tight_layout()
-        for path in paths_s:
-            if ordered: plt.savefig(path.format('ordered_heights_curve'))
-            else : plt.savefig(path.format('heights_curve'))
-        if show_plot: plt.show()
-        else : plt.close()
+def figs_heights_curve(indexes_all, heights_all, active_cells_all, percents_per_steps_all, paths, show_active=True, ordered=True, show_plot=False):
+    h_np = np.array(heights_all)
+    max_x, max_y = h_np.shape[2]-1, 1.05*h_np.max()
+    
+    for phase, heights in enumerate(np.array(heights_all).transpose((1,2,0,3))):
+        for step, heights_ in enumerate(heights):
+            if phase>0 and step==0: continue
+            paths_s = [path.format(phase+1, step/max_x*100) for path in paths]
+            
+            ax = get_ax()
+            for path, h in enumerate(heights_):
+                if ordered: idx = np.flip(np.argsort(h))
+                else:       idx = indexes_all[path][phase]
+                ax.plot(h[idx], linewidth=0.85)
+                
+                if not ordered and show_active:
+                    help_.ax_dot_active_cell(ax,
+                                             active_cells_all[path][phase],
+                                             percents_per_steps_all[path][phase][step],
+                                             np.array([idx, h, h]).T,
+                                             markersize=1)
+
+            ax.set_ylim(0, max_y)
+            if ordered: ax.set_title('ordered heights per unit')
+            else: ax.set_title('heights per unit')
+            plt.tight_layout()
+            for path in paths_s:
+                if ordered: plt.savefig(path.format('ordered_heights_curve'))
+                else : plt.savefig(path.format('heights_curve'))
+            if show_plot: plt.show()
+            else : plt.close()
 
 def figs_stress_scatter(stresses, paths, ordered=True, show_plot=False):
     max_x, max_y = _maxX_maxY(stresses)
-    for step, s_ in enumerate(np.array(stresses).transpose((1,0,2))):
-        paths_s = [path.format(step/max_x*100) for path in paths]
-        
-        ax = get_ax()
-        ms = plt.rcParams['lines.markersize'] ** 0.5
-        for s in s_:
-            if ordered: s = np.flip(np.sort(s))
-            ax.scatter(range(len(s)), s, s=ms)
-        
-        ax.set_ylim(0, max_y)
-        if ordered: ax.set_title('max stress per arm (ordered)')
-        else : ax.set_title('max stress per arm')
-        plt.tight_layout()
-        for path in paths_s:
-            if ordered: plt.savefig(path.format('ordered_stress_scatter'))
-            else: plt.savefig(path.format('stress_scatter'))
-        if show_plot: plt.show()
-        else : plt.close()
+    
+    nb_phases = len(stresses[0])
+    max_x -= nb_phases-1 # do not consider 1st iteration of next step
+    for phase, s_phase in enumerate(np.array(stresses).transpose((1,2,0,3))):
+        for step, s_ in enumerate(s_phase):
+            if phase>0 and step==0: continue
+            paths_s = [path.format(phase+1, step/max_x*100) for path in paths]
+
+            ax = get_ax()
+            ms = plt.rcParams['lines.markersize'] ** 0.5
+            for s in s_:
+                if ordered: s = np.flip(np.sort(s))
+                ax.scatter(range(len(s)), s, s=ms)
+
+            ax.set_ylim(0, max_y)
+            if ordered: ax.set_title('max stress per arm (ordered)')
+            else : ax.set_title('max stress per arm')
+            plt.tight_layout()
+            for path in paths_s:
+                if ordered: plt.savefig(path.format('ordered_stress_scatter'))
+                else: plt.savefig(path.format('stress_scatter'))
+            if show_plot: plt.show()
+            else : plt.close()
 
 def figs_stress_curve(stresses, paths, show_plot=False):
     max_x, max_y = _maxX_maxY(stresses)
     max_s = []
-    for step, s_ in enumerate(np.array(stresses).transpose((1,0,2))):
-        paths_s = [path.format(step/max_x*100) for path in paths]
-        max_s.append(np.array(s_).max(axis=1))
-        
-        ax = get_ax()
-        ax.plot(max_s, linewidth=0.85)
-        
-        ax.set_ylim(0, max_y)
-        ax.set_xlim(0, max_x)
-        ax.set_title('max stress per step')
-        plt.tight_layout()
-        for path in paths_s:
-            plt.savefig(path.format('stress_curve'))
-        if show_plot: plt.show()
-        else : plt.close()
+    
+    nb_phases = len(stresses[0])
+    max_x -= nb_phases-1 # do not consider 1st iteration of next step
+    for phase, s_phase in enumerate(np.array(stresses).transpose((1,2,0,3))):
+        for step, s_ in enumerate(s_phase):
+            if phase>0 and step==0: continue
+            paths_s = [path.format(phase+1, step/max_x*100) for path in paths]
+            max_s.append(np.array(s_).max(axis=1))
+
+            ax = get_ax()
+            ax.plot(max_s, linewidth=0.85)
+
+            ax.set_ylim(0, max_y)
+            ax.set_xlim(0, max_x)
+            ax.set_title('max stress per step')
+            plt.tight_layout()
+            for path in paths_s:
+                plt.savefig(path.format('stress_curve'))
+            if show_plot: plt.show()
+            else : plt.close()
 
 def figs_energy_curve(energies, paths, show_plot=False):
     max_x, max_y = _maxX_maxY(energies)
+    
+    nb_phases = len(energies[0])
+    max_x -= nb_phases-1
     e = []
-    for step, e_ in enumerate(np.array(energies).transpose()):
-        paths_s = [path.format(step/max_x*100) for path in paths]
-        e.append(e_)
-        
-        ax = get_ax()
-        ax.plot(e, linewidth=0.85)
-        
-        ax.set_ylim(0, max_y)
-        ax.set_xlim(0, max_x)
-        ax.set_title('elastic energy per step')
-        plt.tight_layout()
-        for path in paths_s:
-            plt.savefig(path.format('energies'))
-        if show_plot: plt.show()
-        else : plt.close()
+    for phase, e_phase in enumerate(np.array(energies).transpose(1,2,0)):
+        for step, e_ in enumerate(e_phase):
+            if phase>0 and step==0: continue
+            paths_s = [path.format(phase+1, step/max_x*100) for path in paths]
+            e.append(e_)
+
+            ax = get_ax()
+            ax.plot(e, linewidth=0.85)
+
+            ax.set_ylim(0, max_y)
+            ax.set_xlim(0, max_x)
+            ax.set_title('elastic energy per step')
+            plt.tight_layout()
+            for path in paths_s:
+                plt.savefig(path.format('energies'))
+            if show_plot: plt.show()
+            else : plt.close()
 
 def fig_empty():
     '''
@@ -207,4 +230,4 @@ def get_ax(fig_size=1, dpi=8):
 
 def _maxX_maxY(data):
     d = np.array(data)
-    return d.shape[1]-1, 1.05*d.max()
+    return d.shape[1]*d.shape[2]-1, 1.05*d.max()

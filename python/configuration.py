@@ -195,6 +195,7 @@ def deploy_umbrella_pin_rigid_motion(curr_um, plate_thickness, target_height_mul
     configure_umbrella_pre_deployment(curr_um, plate_thickness, target_height_multiplier)
     if curr_um.getTargetSurface() is None:
         curr_um.attractionWeight = 0
+        # [RK] play with attractionWeight
     
     break_input_angle_symmetry(curr_um)
     if releaseActuation:

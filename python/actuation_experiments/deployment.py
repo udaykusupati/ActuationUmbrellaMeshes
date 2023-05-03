@@ -78,7 +78,7 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
     
     return
 
-def non_regular_grid(mesh_path, degree, category, name, steps, deployment, active_cells, target_percents,
+def non_regular_grid(mesh_path, degree, category, name, steps, deployment, active_cells_all, target_percents_all,
                      heights_fct=None, min_height=64, verbose=False):
     
     # default value for non-regular grid
@@ -118,41 +118,41 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
     init_center_pos = get_center_position(curr_um)
     init_heights = curr_um.umbrellaHeights
     
-    write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents)
+    write_metadata(path, folder_name, degree, rows, cols, steps, active_cells_all, target_percents_all)
     
-    plot2D(input_data,
-           curr_um,
-           show_height=False,
-           active_cells=active_cells,
-           target_percents=target_percents,
-           file_name = path+'/undeployed.png',
-           show_plot=verbose)
-    
-    dep_weights              = set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
-    target_heights           = percent_to_height(init_heights, plate_thickness_scaled, active_cells, target_percents)
-    target_height_multiplier = set_target_height(curr_um.numUmbrellas(), active_cells, target_heights)
+    for phase, (active_cells, target_percents) in enumerate(zip(active_cells_all, target_percents_all)):
+        plot2D(input_data,
+               curr_um,
+               show_height=False,
+               active_cells=active_cells,
+               target_percents=target_percents,
+               file_name = path+f'/phase{phase+1}_undeployed.png',
+               show_plot=verbose)
     
     deploy_in_steps(curr_um,
                     input_data,
                     init_heights,
                     plate_thickness_scaled,
-                    active_cells,
-                    target_percents,
+                    active_cells_all,
+                    target_percents_all,
                     deployment,
                     path,
                     steps=steps,
                     verbose=verbose)
     
-    img_duration = 5000/steps
+    img_duration = 3000/steps
     stress_type = 'VonMises'
-    for stress_type in ['VonMises','maxBending','Twisting']:
+    for stress_type in ['VonMises']:#,'maxBending','Twisting']:
         if verbose: print(f'\n-> generate images for {stress_type}.')
-        generate_2D(path,
-                    deployment,
-                    stress_type=stress_type,
-                    show_percent=False,
-                    show_plot=False,
-                    verbose=verbose)
+        for phase in range(len(active_cells_all)):
+            generate_2D(path,
+                        phase+1,
+                        deployment,
+                        stress_type=stress_type,
+                        show_percent=False,
+                        show_plot=False,
+                        verbose=verbose)
+            
         generate_1D([path], [deployment],
                     save_dir = '',
                     stress_type=stress_type,
