@@ -23,19 +23,21 @@ def read_results(path, phase, deployment, stress_type):
     connectivity  = [[int(i), int(j)] for [i,j] in _read_csv(path+'/connectivity.csv')]
     init_position = _read_csv(path+'/position.csv')
 
-    heights  = _read_csv(path_dep+f'/heights/values/phase{phase}_heights.csv')
-    actuation = _read_csv(path_dep+f'/heights/values/phase{phase}_percents.csv')
+    heights  = _read_csv(path_dep+f'/heights/values/phase{phase:0>2}_heights.csv')
+    actuation = _read_csv(path_dep+f'/heights/values/phase{phase:0>2}_percents.csv')
     # format data:
     active_cells = [int(c) for c in actuation[0]] # 1st line is the activated cells indexes[0]
     percents_per_steps = actuation[1:]
 
     # return only elastic energy
-    el_energies = _read_csv_dic(path_dep+f'/energies/values/phase{phase}_energies.csv')
+    el_energies = _read_csv_dic(path_dep+f'/energies/values/phase{phase:0>2}_energies.csv')
 
 
     stresses = []
     for i in range(len(heights)):
-        stresses.append(_read_csv(path_stresses+f'/phase{phase}_step{i:0>2}.csv'))
+        stresses.append(_read_csv(path_stresses+f'/phase{phase:0>2}_step{i:0>2}.csv'))
+
+    max_stresses = _read_csv(path_stresses+'/max_stresses.csv')
 
     return connectivity,\
            np.array(init_position),\
@@ -43,6 +45,7 @@ def read_results(path, phase, deployment, stress_type):
            active_cells,\
            percents_per_steps,\
            np.array(stresses),\
+           np.array(max_stresses),\
            el_energies
 
 def get_indexes(degree, rows, cols):
@@ -80,7 +83,7 @@ def _read_csv_dic(path):
     datas = []
     with open(path, "r") as csvfile: 
         reader = csv.reader(csvfile)
-        header = next(reader, None)
+        _ = next(reader, None) # header
         for row in reader:
             datas.append(row)
     return [float(energies[1]) for energies in datas]

@@ -1,6 +1,6 @@
 from tools import *
 from images import *
-from figure_2D import plot2D, projection2D
+from figure_2D import plot_undeployed_2D, projection2D
 from RegularGrid import RegularGrid
 
 import mesh
@@ -10,6 +10,7 @@ import configuration
 sys.path.append('../UmbrellaGen')
 import grid_gen
 
+giff_total_time = 5000
 
 def regular_grid(degree, rows, cols, category, name, steps, deployment, active_cells, target_percents,
                  heights_fct= None, min_height=64, verbose=False):
@@ -19,9 +20,6 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
                                               cols,
                                               deployment,
                                               name)
-
-    write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents)
-    
     
     grid = RegularGrid(degree=degree,
                        rows=rows,
@@ -31,54 +29,11 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
     
     grid.generate_mesh(folder_name, verbose=verbose)
     
-    plot2D(grid.input_data,
-           grid.curr_um,
-           show_height=False,
-           active_cells=active_cells,
-           target_percents=target_percents,
-           file_name = path+'/undeployed.png',
-           show_plot=verbose)
-    
-    deploy_in_steps(grid.curr_um,
-                grid.input_data,
-                grid.init_heights,
-                grid.plate_thickness,
-                active_cells,
-                target_percents,
-                deployment,
-                path,
-                steps=steps,
-                verbose=verbose)
-    
-    if (grid.rows==1 or grid.cols==1):
-        projection2D(grid.input_data['umbrella_connectivity'],
-                        grid.curr_um, active_cells, target_percents,
-                        file_name=path+'/projection2D.png', show_plot = False)
-    
-    img_duration = 5000/steps
-    stress_type = 'maxBending'
-    for stress_type in ['VonMises','maxBending','Twisting']:
-        if verbose: print(f'\n-> generate images for {stress_type}.')
-        generate_2D(path,
-                    deployment,
-                    stress_type=stress_type,
-                    show_percent=False,
-                    show_plot=False,
-                    verbose=verbose)
+    _deploy(path, folder_name, grid.input_data, grid.curr_um, degree, rows, cols, steps,
+            active_cells, target_percents, grid.init_heights, grid.plate_thickness, deployment,
+            verbose)
 
-        generate_1D([path],
-                    [deployment],
-                    save_dir = '', 
-                    stress_type=stress_type,
-                    show_percent=False,
-                    show_plot=False,
-                    verbose=verbose)
-
-        img_to_gif(path, deployment, stress_type, duration=img_duration, loop=2, verbose=verbose)
-    
-    return
-
-def non_regular_grid(mesh_path, degree, category, name, steps, deployment, active_cells_all, target_percents_all,
+def non_regular_grid(mesh_path, degree, category, name, steps, deployment, active_cells, target_percents,
                      heights_fct=None, min_height=64, verbose=False):
     
     # default value for non-regular grid
@@ -115,48 +70,78 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
     io, input_data, target_mesh, curr_um, plate_thickness_scaled, target_height_multiplier = \
         configuration.parse_input(input_path, handleBoundary = False, isHex = (degree == 6), use_target_surface = False)
 
-    init_center_pos = get_center_position(curr_um)
     init_heights = curr_um.umbrellaHeights
     
-    write_metadata(path, folder_name, degree, rows, cols, steps, active_cells_all, target_percents_all)
+    _deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
+            active_cells, target_percents, init_heights, plate_thickness_scaled, deployment,
+            verbose)
+
+
+def _deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
+            active_cells, target_percents, init_heights, plate_thickness, deployment,
+            verbose=False):
     
-    for phase, (active_cells, target_percents) in enumerate(zip(active_cells_all, target_percents_all)):
-        plot2D(input_data,
-               curr_um,
-               show_height=False,
-               active_cells=active_cells,
-               target_percents=target_percents,
-               file_name = path+f'/phase{phase+1}_undeployed.png',
-               show_plot=verbose)
+    write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents)
     
-    deploy_in_steps(curr_um,
-                    input_data,
+    for phase, (active_c, target_p) in enumerate(zip(active_cells, target_percents)):
+        plot_undeployed_2D(input_data,
+                           curr_um,
+                           show_height=False,
+                           active_cells=active_c,
+                           target_percents=target_p,
+                           file_name = path+f'/phase{phase+1}_undeployed.png',
+                           show_plot=verbose)
+        '''
+        # should be done after deployement, but required for each phase...
+        # -not so meaningful-
+        if (rows==1 or cols==1):
+            projection2D(input_data['umbrella_connectivity'],
+                         curr_um, active_c, target_p,
+                         file_name=path+f'/phase{phase+1}_projection2D.png', show_plot = False)
+        '''
+    if verbose: print(f'Deployment')
+    deploy_in_phase(curr_um,
+                    input_data['umbrella_connectivity'],
                     init_heights,
-                    plate_thickness_scaled,
-                    active_cells_all,
-                    target_percents_all,
+                    plate_thickness,
+                    active_cells,
+                    target_percents,
                     deployment,
                     path,
                     steps=steps,
                     verbose=verbose)
     
-    img_duration = 3000/steps
-    stress_type = 'VonMises'
-    for stress_type in ['VonMises']:#,'maxBending','Twisting']:
+    img_duration = giff_total_time/steps
+    stress_types = ['VonMises','maxBending','Twisting']
+
+    nb_phases = len(active_cells)
+    for stress_type in stress_types:
         if verbose: print(f'\n-> generate images for {stress_type}.')
-        for phase in range(len(active_cells_all)):
-            generate_2D(path,
-                        phase+1,
-                        deployment,
-                        stress_type=stress_type,
-                        show_percent=False,
-                        show_plot=False,
-                        verbose=verbose)
-            
-        generate_1D([path], [deployment],
-                    save_dir = '',
-                    stress_type=stress_type,
-                    show_percent=False,
-                    show_plot=False,
-                    verbose=verbose)
-        img_to_gif(path, deployment, stress_type, duration=img_duration, loop=2, verbose=verbose)
+        for phase in range(nb_phases):
+            if verbose: print(f'  phase: {phase:0>2}')
+            generate_stresses_2D(path,
+                                 phase,
+                                 deployment,
+                                 stress_type=stress_type,
+                                 show_percent=False,
+                                 show_plot=False,
+                                 verbose=verbose)
+        if verbose: print(f'  generate 1D images:')
+        generate_stresses_1D([path],
+                             [deployment],
+                             stress_type=stress_type,
+                             verbose=verbose)
+        
+    if verbose: print(f'  generate images for heights and energies.')
+    for phase in range(nb_phases):
+        if verbose: print(f'phase: {phase:0>2}')
+        generate_heights_2D(path, phase, deployment,
+                            verbose=verbose)
+    if verbose: print(f'  generate 1D images:')
+    generate_heightsEnergies_1D([path],
+                                [deployment],
+                                verbose=verbose)
+    
+    if verbose: print(f'\n-> generate GIFs.')
+    img_to_gif(path, deployment, stress_type, duration=img_duration, loop=2, verbose=verbose)
+

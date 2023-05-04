@@ -12,8 +12,9 @@ from tools import get_center_position
 
 #------------------ GRID ------------------
 
-def plot2D(input_data, curr_um,
-           show_height=False, active_cells=[], target_percents=[], file_name='', show_plot=True):
+def plot_undeployed_2D(input_data, curr_um,
+                       show_height=False, active_cells=[], target_percents=[],
+                       file_name='', show_plot=True):
     center_position = get_center_position(curr_um)
 
     # plot:

@@ -13,7 +13,7 @@ def create_dir(name):
     else: raise ValueError(f'folder {name} already exists')
 
 def get_max_stress_matrix(curr_um,
-                          stress_type='maxBending'):
+                          stress_type='VonMises'):
     '''return the adjacency max stress matrix'''
     matrix = np.zeros((curr_um.numUmbrellas(), curr_um.numUmbrellas()))
     stress_all = get_stresses(curr_um, stress_type)
@@ -31,7 +31,7 @@ def get_max_stress_matrix(curr_um,
     return matrix
 
 def get_stresses(curr_um,
-                 stress_type):
+                 stress_type='VonMises'):
     if stress_type=='VonMises':
         stresses = curr_um.maxVonMisesStresses()
     elif stress_type=='maxBending':
@@ -46,7 +46,7 @@ def get_stresses(curr_um,
         raise ValueError(f'the required stress type <{stress_type}> do not correspond to any available stress')
     return stresses
 
-def get_stresses_types():
+def get_stress_types():
     return ['VonMises',
             'maxBending', 
             'minBending',

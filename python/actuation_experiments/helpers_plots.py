@@ -29,7 +29,8 @@ def ax_dot_active_cell(ax, active_cells, target_percents, positions, markersize=
     for i, p in zip(active_cells, target_percents):
         r = p/100
         [x,y,_] = positions[i]
-        ax.scatter(x,y, color=(r,1-r,0), s=s, zorder=2.5, edgecolors=edgecolor, linewidths=lw) # default zorder for plot is 2 (higher means more on top)
+        # default zorder for plot is 2 (higher value means more on top)
+        ax.scatter(x,y, color=(r,1-r,0), s=s, zorder=2.5, edgecolors=edgecolor, linewidths=lw)
 
 def ax_plot_stresses(ax, connectivity, stress_matrix, min_, max_, active_cells, percents, positions, show_percent):
     _ax_arms_as_stress(ax, connectivity, stress_matrix, min_, max_, positions)

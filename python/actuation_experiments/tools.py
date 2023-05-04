@@ -54,90 +54,103 @@ def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_n
     for type_ in ['heights', 'energies']:
         _sub_folder(path_dep+f'/{type_}')
 
-    for s_type in help_.get_stresses_types():
+    for s_type in help_.get_stress_types():
         _sub_folder(path_dep+f'/stresses/{s_type}')
     
     return folder_name, path
 
-def write_metadata(path, folder_name, degree, rows, cols, steps, active_cells_per_phase, target_percents_per_phase):
+def write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents):
     with open(path+"/metadata.txt", "w") as f:
         f.write("Name  : " + folder_name + '\n')
         f.write("Degree: " + str(degree) + '\n')
         f.write("Rows  : " + str(rows)   + '\n')
         f.write("Cols  : " + str(cols)   + '\n')
         f.write("Steps : " + str(steps)      + '\n')
-        f.write("Phases: " + str(len(active_cells_per_phase)) + '\n')
-        f.write("Active Cells   : " + str(active_cells_per_phase)    + '\n')
-        f.write("Target Percents: " + str(target_percents_per_phase) + '\n')
+        f.write("Phases: " + str(len(active_cells)) + '\n')
+        f.write("Active Cells   : " + str(active_cells)    + '\n')
+        f.write("Target Percents: " + str(target_percents) + '\n')
     
 
-def deploy_in_steps(curr_um, input_data, init_heights, plate_thickness, active_cells_all, target_percents_all, deployment, path,
+def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active_cells_all, target_percents_all, deployment, path,
                     steps=10, verbose=True):
 
-    prev_target_percent = [0]*len(target_percents_all[0])
+    # write Connectivity and Undeployed Units positions
+    _write_rows(path+'/connectivity.csv', connectivity)
+    _write_rows(path+'/position.csv', get_center_position(curr_um))
+
+    prev_percents = [0]*len(target_percents_all[0]) # start with undeployed units
     max_phase = len(active_cells_all)-1
+
+    stress_types = help_.get_stress_types()
+
+    # to record max/min stresses during deployment:
+    max_stresses_all = {}
+    for stress_type in stress_types:
+        max_stresses_all[stress_type] = np.zeros((curr_um.numUmbrellas(), curr_um.numUmbrellas()))
+
     for phase, (active_cells, target_percents) in enumerate(zip(active_cells_all, target_percents_all)):
         if verbose:
-            print(f'==== PHASE {phase+1: >2} ====')
+            print(f'\n==== PHASE {phase+1:0>2} ====')
             print(f'{active_cells    = }')
             print(f'{target_percents = }')
+        
         dep_weights = help_grid.set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
-        # deployent in steps
-        stresses_per_steps = np.zeros((steps+1, curr_um.numUmbrellas(), curr_um.numUmbrellas())) # 1st step is deployment 0%
+        
+        # to record values to write
         percents_per_steps = []
         heights            = []
         energies           = []
 
         # header for energies.csv
-        energies.append(allEnergies(curr_um).keys()) # will be read back as dict
-        
-        # write 
-        _write_rows(path+'/connectivity.csv',input_data['umbrella_connectivity'])
-        _write_rows(path+'/position.csv', get_center_position(curr_um))
+        energies.append(allEnergies(curr_um).keys()) # file will be read back as dict
 
-        stresses_types = help_.get_stresses_types()
         for s in range(steps+1):
-            if   deployment=='linear'      : target_percents_step = [max(0, min(prev_p+(p-prev_p)*s/steps, 100)) for prev_p, p in zip(prev_target_percent, target_percents)]
-            elif deployment=='incremental' : target_percents_step = [min(p, 100*s/steps) for p in target_percents]
-            elif deployment=='max':
-                max_p = max(target_percents)
-                target_percents_step = [min(p, max_p*s/steps) for p in target_percents]
-            else : raise ValueError(f'deployment unknown: {deployment} (choises:\'linear\',\'incremental\',\'max\')')
-            
-            percents_per_steps.append(target_percents_step)
-            target_heights = help_grid.percent_to_height(init_heights, plate_thickness, active_cells, target_percents_step)
+            target_percents_s = _get_target_percents_s(deployment, s, steps, prev_percents, target_percents)
+            percents_per_steps.append(target_percents_s)
+
+            target_heights = help_grid.percent_to_height(init_heights, plate_thickness, active_cells, target_percents_s)
             target_height_multiplier = help_grid.set_target_height(curr_um.numUmbrellas(), plate_thickness, active_cells, target_heights)
             success, _ = deploy_umbrella_pin_rigid_motion(curr_um,
-                                                            plate_thickness,
-                                                            target_height_multiplier,
-                                                            dep_weights=dep_weights)
+                                                          plate_thickness,
+                                                          target_height_multiplier,
+                                                          dep_weights=dep_weights)
             if success:
                 heights.append(curr_um.umbrellaHeights)
                 energies.append(list(allEnergies(curr_um).values()))
-                for s_type in stresses_types:
-                    path_stresses = path+f'/{deployment}_deployment/stresses/{s_type}/values'
-                    stresses_per_steps[s] = help_.get_max_stress_matrix(curr_um, s_type)
-                    # write resuts
-                    with open(path_stresses+f'/phase{phase+1}_step{s:0>2}.csv',"w", newline='') as csvfile:
-                        writer = csv.writer(csvfile)
-                        writer.writerows(stresses_per_steps[s])
-                if verbose: print(f'step {s: >2}/{steps} saved.')
+                for stress_type in stress_types:
+                    path_stresses = path+f'/{deployment}_deployment/stresses/{stress_type}/values'
+                    max_stress_step = help_.get_max_stress_matrix(curr_um, stress_type)
+                    # write max Stresses for this step
+                    _write_rows(path_stresses+f'/phase{phase+1:0>2}_step{s:0>2}.csv',
+                                max_stress_step)
+                    
+                    # retain max deployment stresses
+                    is_max = max_stress_step > max_stresses_all[stress_type]
+                    max_stresses_all[stress_type][is_max] = max_stress_step[is_max]
+
+                if verbose: print(f'step {s:0>2}/{steps:0>2} saved.')
 
             else: raise ValueError(f'did not converge at step {s}.')
 
-        # write
-        _write_rows(path+f'/{deployment}_deployment/heights/values/phase{phase+1}_heights.csv',
-                    np.array(heights)-input_data['thickness'])
-        _write_rows(path+f'/{deployment}_deployment/energies/values/phase{phase+1}_energies.csv',
+        # write Heights and Energies
+        _write_rows(path+f'/{deployment}_deployment/heights/values/phase{phase+1:0>2}_heights.csv',
+                    np.array(heights)-plate_thickness)
+        _write_rows(path+f'/{deployment}_deployment/energies/values/phase{phase+1:0>2}_energies.csv',
                     energies)
-        # write percents and active cells
-        with open(path+f'/{deployment}_deployment/heights/values/phase{phase+1}_percents.csv',"w", newline='') as csvfile:
+        # write Percnets and Active Units
+        with open(path+f'/{deployment}_deployment/heights/values/phase{phase+1:0>2}_percents.csv',"w", newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(active_cells)
             writer.writerows(percents_per_steps)
         
+        # get openning percent of next phase's active units
         if phase < max_phase:
-            prev_target_percent = help_grid.height_to_percent(init_heights, plate_thickness, active_cells_all[phase+1], curr_um.umbrellaHeights)
+            prev_percents = help_grid.height_to_percent(init_heights, plate_thickness, active_cells_all[phase+1], curr_um.umbrellaHeights)
+    
+    # write max deployment stress
+    for stress_type in stress_types:
+        path_stresses = path+f'/{deployment}_deployment/stresses/{stress_type}/values'
+        _write_rows(path_stresses+f'/max_stresses.csv', max_stresses_all[stress_type])
 
 def img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=False):
     path = f'{path}/{deployment}_deployment'
@@ -203,12 +216,22 @@ def linear_height_ls(ls, min_dep=0, max_dep=100):
         percents.append(min_dep+p*max_dep)
     return percents
 
+# ---------------------------------------------------------------------- helpers
 
 def _sub_folder(path):
     os.makedirs(path+'/values')
     os.makedirs(path+'/png/gif')
     os.makedirs(path+'/jpg/gif')
 
+def _get_target_percents_s(deployment, s, steps, prev_target_percents, target_percents):
+    if   deployment=='linear':
+        return [max(0, min(prev_p+(p-prev_p)*s/steps, 100)) for prev_p, p in zip(prev_target_percents, target_percents)]
+    elif deployment=='incremental':
+        return [min(p, 100*s/steps) for p in target_percents]
+    elif deployment=='max':
+        max_p = max(target_percents)
+        return [min(p, max_p*s/steps) for p in target_percents]
+    else : raise ValueError(f'deployment unknown: {deployment} (choises:\'linear\',\'incremental\',\'max\')')
 
 def _create_gif(images_name, gif_name, duration, loop):
     frames = [Image.open(image) for image in sorted(glob.glob(images_name))]
@@ -217,7 +240,7 @@ def _create_gif(images_name, gif_name, duration, loop):
     
 def _gif_list(path, ls, duration, loop):
     for name in ls:
-        _create_gif(f'{path}/jpg/phase?_{name}*.jpg',
+        _create_gif(f'{path}/jpg/phase??_{name}*.jpg',
                    f'{path}/jpg/gif/{name}.gif',
                    duration, loop)
 def _img_to_gif_stress_1D(path, stress_type, duration=500, loop=2):
@@ -228,7 +251,7 @@ def _img_to_gif_stress_2D(path, stress_type, duration=500, loop=2):
     path_base = f'{path}/stresses/{stress_type}'
     names = ['overall', 'perSteps', 'own',]
     _gif_list(path_base, names, duration, loop)
-        
+
 def _img_to_gif_heights_1D(path, duration=500, loop=2):
     path_base = f'{path}/heights'
     names = ['heights_curve', 'ordered_heights_curve']
@@ -237,19 +260,21 @@ def _img_to_gif_heights_2D(path, duration=500, loop=2):
     path_base = f'{path}/heights'
     names = ['heights2D']
     _gif_list(path_base, names, duration, loop)
-    
+
 def _img_to_gif_energies(path, duration=500, loop=2):
     path_base = f'{path}/energies'
     names = ['energies']
     _gif_list(path_base, names, duration, loop)
-    
+
 def _write_rows(path, data):
     with open(path,"w", newline='') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerows(data)
     
     
-'''     
+''' 
+should have gifski and ffmpeg installed
+
 def img_to_gif(loop=2, fps=2):
     #fps: frames per seconds
     #loop: -1: no loop | 0: infinit loop | 1: loop once (see image twice) | 2: loop twice | ...
