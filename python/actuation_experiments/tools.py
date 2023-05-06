@@ -225,7 +225,10 @@ def _sub_folder(path):
 
 def _get_target_percents_s(deployment, s, steps, prev_target_percents, target_percents):
     if   deployment=='linear':
+        # use of max/min because of numerical/deployment uncertainties
         return [max(0, min(prev_p+(p-prev_p)*s/steps, 100)) for prev_p, p in zip(prev_target_percents, target_percents)]
+    
+    # following deployment strategies need to be adapted for multi-phase deployment
     elif deployment=='incremental':
         return [min(p, 100*s/steps) for p in target_percents]
     elif deployment=='max':
