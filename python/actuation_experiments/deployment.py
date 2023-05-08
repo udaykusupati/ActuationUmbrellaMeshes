@@ -29,7 +29,7 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
     
     grid.generate_mesh(folder_name, verbose=verbose)
     
-    _deploy(path, folder_name, grid.input_data, grid.curr_um, degree, rows, cols, steps,
+    deploy(path, folder_name, grid.input_data, grid.curr_um, degree, rows, cols, steps,
             active_cells, target_percents, grid.init_heights, grid.plate_thickness, deployment,
             verbose)
 
@@ -72,14 +72,14 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
 
     init_heights = curr_um.umbrellaHeights
     
-    _deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
+    deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
             active_cells, target_percents, init_heights, plate_thickness_scaled, deployment,
             verbose)
 
 
-def _deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
-            active_cells, target_percents, init_heights, plate_thickness, deployment,
-            verbose=False):
+def deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
+            active_cells, target_percents, init_heights, plate_thickness,
+           deployment='linear', verbose=False):
     
     write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents)
     
@@ -144,4 +144,4 @@ def _deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
     
     if verbose: print(f'\n-> generate GIFs.')
     img_to_gif(path, deployment, stress_type, duration=img_duration, loop=2, verbose=verbose)
-
+    

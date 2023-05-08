@@ -129,7 +129,7 @@ def generate_stresses_1D(paths, deployments,
     if len(paths) == 1:
          save_dir = paths[0] + f'/{deployments[0]}_deployment'
     if save_dir!= '':
-        if not os.path.exists(save_dir):
+        if not os.path.exists(save_dir+ f'/stresses/{stress_type}'):
               os.makedirs(save_dir+ f'/stresses/{stress_type}/jpg/gif')
               os.makedirs(save_dir+ f'/stresses/{stress_type}/png/gif')
         path_s = save_dir + f'/stresses/{stress_type}'
@@ -180,7 +180,7 @@ def generate_heightsEnergies_1D(paths, deployments,
     if len(paths) == 1:
          save_dir = paths[0] + f'/{deployments[0]}_deployment'
     if save_dir!= '':
-        if not os.path.exists(save_dir):
+        if not os.path.exists(save_dir+ '/energies'):
               os.makedirs(save_dir+ '/energies/jpg/gif')
               os.makedirs(save_dir+ '/energies/png/gif')
               os.makedirs(save_dir+ '/heights/jpg/gif')
