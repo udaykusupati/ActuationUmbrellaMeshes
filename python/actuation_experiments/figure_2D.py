@@ -31,7 +31,7 @@ def plot_undeployed_2D(input_data, curr_um,
         fig.savefig(file_name)
     plt.sca(ax)
     if show_plot: plt.show()
-    else: plt.close()
+    else:         plt.close()
 
 def plot2D_stress(curr_um, connectivity, init_center_pos,
                   active_cells=[], target_percents=[], stress_type='maxBending',
@@ -60,7 +60,7 @@ def projection2D(connectivity, curr_um,
         fig.savefig(file_name)
     plt.sca(ax)
     if show_plot: plt.show()
-    else: plt.close()
+    else:         plt.close()
 
 def fig_arm_stresses(connectivity,
                      active_cells,
@@ -85,7 +85,7 @@ def fig_arm_stresses(connectivity,
         fig.savefig(path.format(file_name))
     plt.sca(ax)
     if show_plot: plt.show()
-    else : plt.close()
+    else:         plt.close()
     
 def fig_height2D(connectivity, active_cells, heights, positions, show_plot, title, path_names, file_name=''):
     h = np.array(heights)
@@ -106,7 +106,7 @@ def fig_height2D(connectivity, active_cells, heights, positions, show_plot, titl
         fig.savefig(path.format(file_name))
     plt.sca(ax)
     if show_plot: plt.show()
-    else : plt.close()
+    else:         plt.close()
     
 
 
@@ -129,7 +129,7 @@ def figs_stress_curve(stresses, xylim, paths, show_plot=False):
                 ax = axes[ax_idx][1]
                 ax.plot(max_s, linewidth=0.85)
                 plt.sca(ax)
-                plt.show()
+                plt.close()
                 ax_idx += 1
         
     for (fig, ax), path in zip(axes, path_all):
@@ -141,14 +141,13 @@ def figs_stress_curve(stresses, xylim, paths, show_plot=False):
             fig.savefig(p.format('stress_curve'))
         plt.sca(ax)
         if show_plot: plt.show()
-        else : plt.close()
+        else:         plt.close()
     return
 
 def figs_stress_scatter(stresses, xylim, paths, ordered=True, show_plot=False):
     ms = plt.rcParams['lines.markersize'] ** 0.5
     axes     = []
     path_all = []
-    nb_units = 0
     for path, stress_path in enumerate(stresses):
         ax_idx = 0
         for phase, stress_phase in enumerate(stress_path):
@@ -157,30 +156,27 @@ def figs_stress_scatter(stresses, xylim, paths, ordered=True, show_plot=False):
                 if path==0:
                     axes.append(get_ax())
                     path_all.append([path.format(phase+1, step/xylim[0]*100) for path in paths])
-                if nb_units == 0:
-                    nb_units = len(stress_step)
-                    indexes = range(nb_units)
                     
                 if ordered: stress_step = np.flip(np.sort(stress_step))
                 
                 ax = axes[ax_idx][1]
-                ax.scatter(indexes, stress_step, s=ms)
+                ax.scatter(range(xylim[0]), stress_step, s=ms)
                 plt.sca(ax)
                 plt.close()
                 ax_idx += 1
         
     for (fig, ax), path in zip(axes, path_all):
-        ax.set_xticks(np.arange(0, nb_units, 1))
+        ax.set_xlim(0, xylim[0])
         ax.set_ylim(0, xylim[1])
         if ordered: ax.set_title('max stress per arm (ordered)')
-        else : ax.set_title('max stress per arm')
+        else:       ax.set_title('max stress per arm')
         fig.tight_layout()
         for p in path:
             if ordered: fig.savefig(p.format('ordered_stress_scatter'))
-            else: fig.savefig(p.format('stress_scatter'))
+            else:       fig.savefig(p.format('stress_scatter'))
         plt.sca(ax)
         if show_plot: plt.show()
-        else : plt.close()
+        else:         plt.close()
     return
 
 def figs_heights_curve(indexes_all, heights, xylim, active_cells_all, percents_per_steps_all, paths, show_active=True, ordered=True, show_plot=False):
@@ -210,18 +206,19 @@ def figs_heights_curve(indexes_all, heights, xylim, active_cells_all, percents_p
                 plt.close()
                 ax_idx += 1
 
+    print(xylim)
     for (fig, ax), path in zip(axes, path_all):
-        ax.set_xticks(np.arange(0, xylim[0]+1, 1))
+        ax.set_xlim(0, xylim[0])
         ax.set_ylim(0, xylim[1])
         if ordered: ax.set_title('ordered heights per unit')
-        else: ax.set_title('heights per unit')
+        else:       ax.set_title('heights per unit')
         fig.tight_layout()
         for p in path:
             if ordered: fig.savefig(p.format('ordered_heights_curve'))
-            else : fig.savefig(p.format('heights_curve'))
+            else:       fig.savefig(p.format('heights_curve'))
         plt.sca(ax)
         if show_plot: plt.show()
-        else : plt.close()
+        else:         plt.close()
     return
 
 def figs_energy_curve(energies, xylim, paths, show_plot=False): 
@@ -244,7 +241,7 @@ def figs_energy_curve(energies, xylim, paths, show_plot=False):
                 ax.plot(e, linewidth=0.85)
                 
                 plt.sca(ax)
-                plt.show()
+                plt.close()
                 ax_idx += 1
                 
     for (fig, ax), path in zip(axes, path_all):
@@ -256,7 +253,7 @@ def figs_energy_curve(energies, xylim, paths, show_plot=False):
             fig.savefig(p.format('energies'))
         plt.sca(ax)
         if show_plot: plt.show()
-        else : plt.close()
+        else:         plt.close()
 
 def fig_empty():
     '''

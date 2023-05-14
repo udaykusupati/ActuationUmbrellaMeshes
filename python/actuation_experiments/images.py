@@ -117,25 +117,29 @@ def generate_stresses_1D(paths, deployments,
     stresses    = []
     list_steps  = []
     list_phases = []
-
-    s_max = 0 # for later plotting
+    
+    nb_steps = 0
+    nb_arms  = 0
+    s_max    = 0
     for path, dep in zip(paths, deployments):
         _,_,_,_, steps, phases, *_  = helpers_images.read_metadata(path+'/metadata.txt')
         list_steps.append(steps)
         list_phases.append(phases)
         stresses_phase = []
         indexes_phase  = []
+        if nb_steps == 0: nb_steps = sum(steps)+1 # the first undeployed state (+1)
         for phase in range(phases):
             connectivity_,_,_,_,_, stresses_,max_stresses_,_ =\
                 helpers_images.read_results(path, phase+1, dep, stress_type)
-            
+            if nb_arms == 0: nb_arms = connectivity_.shape[0]
             stresses_phase.append([s[connectivity_[:,0], connectivity_[:,1]]for s in stresses_])
             if max_stresses_.max() > s_max: s_max = max_stresses_.max()
         stresses.append(stresses_phase)
     
     max_y = s_max*1.05 # add some margin for plot
-    max_x = sum(steps)+1 # for later plotting | consider also the first undeployed state (+1)
-
+    max_x_curve   = nb_steps
+    max_x_scatter = nb_arms
+    
     if len(paths) == 1:
          save_dir = paths[0] + f'/{deployments[0]}_deployment'
     if save_dir!= '':
@@ -145,13 +149,13 @@ def generate_stresses_1D(paths, deployments,
         path_s = save_dir + f'/stresses/{stress_type}'
     else : path_s = ''
     
-    figure_2D.figs_stress_curve(stresses, (max_x ,max_y), _add_jpg_png(path_s), show_plot = show_plot)
+    figure_2D.figs_stress_curve(stresses, (max_x_curve ,max_y), _add_jpg_png(path_s), show_plot = show_plot)
     if verbose: print('stress curve done')
     
-    figure_2D.figs_stress_scatter(stresses, (max_x ,max_y), _add_jpg_png(path_s), show_plot = show_plot)
+    figure_2D.figs_stress_scatter(stresses, (max_x_scatter ,max_y), _add_jpg_png(path_s), show_plot = show_plot)
     if verbose: print('stress scatter done')
     
-    figure_2D.figs_stress_scatter(stresses, (max_x ,max_y), _add_jpg_png(path_s), ordered=False, show_plot = show_plot)
+    figure_2D.figs_stress_scatter(stresses, (max_x_scatter ,max_y), _add_jpg_png(path_s), ordered=False, show_plot = show_plot)
     if verbose: print('ordered stress scatter done')
     
 
@@ -171,17 +175,17 @@ def generate_heightsEnergies_1D(paths, deployments,
     nb_units = 0
     nb_steps = 0
     for path, dep in zip(paths, deployments):
-        _, degree_, rows_, cols_, steps,phases, *_  = helpers_images.read_metadata(path+'/metadata.txt')
+        _, degree_, rows_, cols_, steps, phases, *_  = helpers_images.read_metadata(path+'/metadata.txt')
         heights_phase            = []
         indexes_phase            = []
         energies_phase           = []
         active_cells_phase       = []
         percents_per_steps_phase = []
+        if nb_steps == 0: nb_steps = sum(steps)+1 # the first undeployed state (+1)
         for phase in range(phases):
-            _,_, heights_, active_cells_, percents_per_steps_,_, _, el_energies_ =\
+            _,_, heights_, active_cells_, percents_per_steps_, stresses_, _, el_energies_ =\
                     helpers_images.read_results(path, phase+1, dep, stress_type)
-            if nb_units == 0: nb_units = len(heights_)
-            if nb_steps == 0: nb_steps = sum(steps)
+            if nb_units == 0: nb_units = stresses_.shape[1]
             heights_phase.append(heights_)
             if rows_==0 or cols_==0: indexes_phase.append(list(range(len(heights_[0])))) # external mesh
             else: indexes_phase.append(helpers_images.get_indexes(degree_, rows_, cols_))
