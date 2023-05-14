@@ -206,7 +206,6 @@ def figs_heights_curve(indexes_all, heights, xylim, active_cells_all, percents_p
                 plt.close()
                 ax_idx += 1
 
-    print(xylim)
     for (fig, ax), path in zip(axes, path_all):
         ax.set_xlim(0, xylim[0])
         ax.set_ylim(0, xylim[1])
