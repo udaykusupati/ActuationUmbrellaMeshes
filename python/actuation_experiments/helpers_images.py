@@ -10,7 +10,7 @@ def read_metadata(path, start_line=0):
     degree          = int (metadata[start_line+line][8:]); line+=1
     rows            = int (metadata[start_line+line][8:]); line+=1
     cols            = int (metadata[start_line+line][8:]); line+=1
-    steps           = int (metadata[start_line+line][8:]); line+=1
+    steps           = eval(metadata[start_line+line][8:]); line+=1
     phase           = int (metadata[start_line+line][8:]); line+=1
     active_cells    = eval(metadata[start_line+line][17:]); line+=1
     target_percents = eval(metadata[start_line+line][17:]); line+=1
@@ -39,14 +39,14 @@ def read_results(path, phase, deployment, stress_type):
 
     max_stresses = _read_csv(path_stresses+'/max_stresses.csv')
 
-    return connectivity,\
+    return np.array(connectivity),\
            np.array(init_position),\
-           heights,\
-           active_cells,\
-           percents_per_steps,\
+           np.array(heights),\
+           np.array(active_cells),\
+           np.array(percents_per_steps),\
            np.array(stresses),\
            np.array(max_stresses),\
-           el_energies
+           np.array(el_energies)
 
 def get_indexes(degree, rows, cols):
     if degree==3:

@@ -111,7 +111,7 @@ def deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
                     steps=steps,
                     verbose=verbose)
     
-    img_duration = giff_total_time/steps
+    img_duration = giff_total_time/sum(steps)
     stress_types = ['VonMises']#,'maxBending','Twisting']
 
     nb_phases = len(active_cells)

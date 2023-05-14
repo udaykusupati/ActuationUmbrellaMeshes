@@ -72,7 +72,7 @@ def write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, t
     
 
 def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active_cells_all, target_percents_all, deployment, path,
-                    steps=10, verbose=True):
+                    steps=[10], verbose=True):
 
     # write Connectivity and Undeployed Units positions
     _write_rows(path+'/connectivity.csv', connectivity)
@@ -104,8 +104,8 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
         # header for energies.csv
         energies.append(allEnergies(curr_um).keys()) # file will be read back as dict
 
-        for s in range(steps+1):
-            target_percents_s = _get_target_percents_s(deployment, s, steps, prev_percents, target_percents)
+        for s in range(steps[phase]+1):
+            target_percents_s = _get_target_percents_s(deployment, s, steps[phase], prev_percents, target_percents)
             percents_per_steps.append(target_percents_s)
 
             target_heights = help_grid.percent_to_height(init_heights, plate_thickness, active_cells, target_percents_s)
@@ -128,7 +128,7 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
                     is_max = max_stress_step > max_stresses_all[stress_type]
                     max_stresses_all[stress_type][is_max] = max_stress_step[is_max]
 
-                if verbose: print(f'step {s:0>2}/{steps:0>2} saved.')
+                if verbose: print(f'step {s:0>2}/{steps[phase]:0>2} saved.')
 
             else: raise ValueError(f'did not converge at step {s}.')
 
@@ -226,15 +226,19 @@ def _sub_folder(path):
 def _get_target_percents_s(deployment, s, steps, prev_target_percents, target_percents):
     if   deployment=='linear':
         # use of max/min because of numerical/deployment uncertainties
-        return [max(0, min(prev_p+(p-prev_p)*s/steps, 100)) for prev_p, p in zip(prev_target_percents, target_percents)]
-    
+        return [max(0, min(prev_p+(p-prev_p)*s/steps, 100)) for prev_p, p in zip(prev_target_percents,target_percents)]
+    else : raise ValueError(f'deployment unknown: {deployment} (should be:\'linear\')')
+
     # following deployment strategies need to be adapted for multi-phase deployment
+    '''
+    # no more interesting from deploymeny in phases
     elif deployment=='incremental':
         return [min(p, 100*s/steps) for p in target_percents]
     elif deployment=='max':
         max_p = max(target_percents)
         return [min(p, max_p*s/steps) for p in target_percents]
     else : raise ValueError(f'deployment unknown: {deployment} (choises:\'linear\',\'incremental\',\'max\')')
+    '''
 
 def _create_gif(images_name, gif_name, duration, loop):
     frames = [Image.open(image) for image in sorted(glob.glob(images_name))]

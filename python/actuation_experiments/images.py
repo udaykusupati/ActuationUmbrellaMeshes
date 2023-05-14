@@ -25,8 +25,7 @@ def generate_stresses_2D(path, phase, deployment,
         = helpers_images.read_results(path, phase+1, deployment, stress_type)
 
     steps = stresses_per_steps.shape[0]-1
-    c = np.array(connectivity)
-    max_stress_per_arm = max_stresses.transpose()[c[:,0], c[:,1]]
+    max_stress_per_arm = max_stresses.transpose()[connectivity[:,0], connectivity[:,1]]
     max_stress_all = max_stress_per_arm.max()
     
     title_s = '{{}} - {:0>3.0f}% deployed ('+f'{stress_type}:'+' {:0>6.2f})'
@@ -115,17 +114,28 @@ def generate_stresses_1D(paths, deployments,
     # ensure plt.rcParams.update() to update for next plots
     figure_2D.fig_empty()
     
-    stresses     = []
+    stresses    = []
+    list_steps  = []
+    list_phases = []
+
+    s_max = 0 # for later plotting
     for path, dep in zip(paths, deployments):
-            _, _, _, _, _,phases, *_  = helpers_images.read_metadata(path+'/metadata.txt')
-            stresses_phase     = []
-            for phase in range(phases):
-                connectivity_,_,_,_,_, stresses_,_,_ =\
-                        helpers_images.read_results(path, phase+1, dep, stress_type)
-                c = np.array(connectivity_)
-                stresses_phase.append([s[c[:,0], c[:,1]]for s in stresses_])
-            stresses.append(stresses_phase)
-                
+        _,_,_,_, steps, phases, *_  = helpers_images.read_metadata(path+'/metadata.txt')
+        list_steps.append(steps)
+        list_phases.append(phases)
+        stresses_phase = []
+        indexes_phase  = []
+        for phase in range(phases):
+            connectivity_,_,_,_,_, stresses_,max_stresses_,_ =\
+                helpers_images.read_results(path, phase+1, dep, stress_type)
+            
+            stresses_phase.append([s[connectivity_[:,0], connectivity_[:,1]]for s in stresses_])
+            if max_stresses_.max() > s_max: s_max = max_stresses_.max()
+        stresses.append(stresses_phase)
+    
+    max_y = s_max*1.05 # add some margin for plot
+    max_x = sum(steps)+1 # for later plotting | consider also the first undeployed state (+1)
+
     if len(paths) == 1:
          save_dir = paths[0] + f'/{deployments[0]}_deployment'
     if save_dir!= '':
@@ -135,13 +145,13 @@ def generate_stresses_1D(paths, deployments,
         path_s = save_dir + f'/stresses/{stress_type}'
     else : path_s = ''
     
-    figure_2D.figs_stress_curve(stresses, _add_jpg_png(path_s), show_plot = show_plot)
+    figure_2D.figs_stress_curve(stresses, (max_x ,max_y), _add_jpg_png(path_s), show_plot = show_plot)
     if verbose: print('stress curve done')
     
-    figure_2D.figs_stress_scatter(stresses, _add_jpg_png(path_s), show_plot = show_plot)
+    figure_2D.figs_stress_scatter(stresses, (max_x ,max_y), _add_jpg_png(path_s), show_plot = show_plot)
     if verbose: print('stress scatter done')
     
-    figure_2D.figs_stress_scatter(stresses, _add_jpg_png(path_s), ordered=False, show_plot = show_plot)
+    figure_2D.figs_stress_scatter(stresses, (max_x ,max_y), _add_jpg_png(path_s), ordered=False, show_plot = show_plot)
     if verbose: print('ordered stress scatter done')
     
 
@@ -155,27 +165,41 @@ def generate_heightsEnergies_1D(paths, deployments,
     energies           = []
     active_cells       = []
     percents_per_steps = []
+    
+    h_max = 0
+    e_max = 0
+    nb_units = 0
+    nb_steps = 0
     for path, dep in zip(paths, deployments):
-            _, degree_, rows_, cols_, _,phases, *_  = helpers_images.read_metadata(path+'/metadata.txt')
-            heights_phase            = []
-            indexes_phase            = []
-            energies_phase           = []
-            active_cells_phase       = []
-            percents_per_steps_phase = []
-            for phase in range(phases):
-                _,_, heights_, active_cells_, percents_per_steps_,_, _, el_energies_ =\
-                        helpers_images.read_results(path, phase+1, dep, stress_type)
-                heights_phase.append(heights_)
-                if rows_==0 or cols_==0: indexes_phase.append(list(range(len(heights_[0])))) # external mesh
-                else: indexes_phase.append(helpers_images.get_indexes(degree_, rows_, cols_))
-                energies_phase.append(el_energies_)
-                active_cells_phase.append(active_cells_)
-                percents_per_steps_phase.append(percents_per_steps_)
-            heights.append(heights_phase)
-            indexes.append(indexes_phase)
-            energies.append(energies_phase)
-            active_cells.append(active_cells_phase)
-            percents_per_steps.append(percents_per_steps_phase)
+        _, degree_, rows_, cols_, steps,phases, *_  = helpers_images.read_metadata(path+'/metadata.txt')
+        heights_phase            = []
+        indexes_phase            = []
+        energies_phase           = []
+        active_cells_phase       = []
+        percents_per_steps_phase = []
+        for phase in range(phases):
+            _,_, heights_, active_cells_, percents_per_steps_,_, _, el_energies_ =\
+                    helpers_images.read_results(path, phase+1, dep, stress_type)
+            if nb_units == 0: nb_units = len(heights_)
+            if nb_steps == 0: nb_steps = sum(steps)
+            heights_phase.append(heights_)
+            if rows_==0 or cols_==0: indexes_phase.append(list(range(len(heights_[0])))) # external mesh
+            else: indexes_phase.append(helpers_images.get_indexes(degree_, rows_, cols_))
+            energies_phase.append(el_energies_)
+            active_cells_phase.append(active_cells_)
+            percents_per_steps_phase.append(percents_per_steps_)
+            
+            # max values
+            if heights_.max() > h_max: h_max = heights_.max()
+            if el_energies_.max() > e_max: e_max = el_energies_.max()
+        heights.append(heights_phase)
+        indexes.append(indexes_phase)
+        energies.append(energies_phase)
+        active_cells.append(active_cells_phase)
+        percents_per_steps.append(percents_per_steps_phase)
+        
+    h_xylim = (nb_units, 1.05*h_max)
+    e_xylim = (nb_steps, 1.05*e_max)
                 
     if len(paths) == 1:
          save_dir = paths[0] + f'/{deployments[0]}_deployment'
@@ -191,6 +215,7 @@ def generate_heightsEnergies_1D(paths, deployments,
     
     figure_2D.figs_heights_curve(indexes,
                                  heights,
+                                 h_xylim,
                                  active_cells,
                                  percents_per_steps,
                                  _add_jpg_png(path_h),
@@ -201,6 +226,7 @@ def generate_heightsEnergies_1D(paths, deployments,
     
     figure_2D.figs_heights_curve(indexes,
                                  heights,
+                                 h_xylim,
                                  active_cells,
                                  percents_per_steps,
                                  _add_jpg_png(path_h),
@@ -209,7 +235,7 @@ def generate_heightsEnergies_1D(paths, deployments,
                                  show_plot = show_plot)
     if verbose: print('ordered heights curve done')
     
-    figure_2D.figs_energy_curve(energies, _add_jpg_png(path_e), show_plot = show_plot)
+    figure_2D.figs_energy_curve(energies, e_xylim, _add_jpg_png(path_e), show_plot = show_plot)
     if verbose: print('energy curve done')
 
 def _add_jpg_png(path=''):
