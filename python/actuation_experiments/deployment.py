@@ -10,10 +10,8 @@ import configuration
 sys.path.append('../UmbrellaGen')
 import grid_gen
 
-giff_total_time = 5000
-
 def regular_grid(degree, rows, cols, category, name, steps, deployment, active_cells, target_percents,
-                 heights_fct= None, min_height=64, verbose=False):
+                 gif_duration=4, heights_fct= None, min_height=64, verbose=False):
     folder_name , path = create_dir_hierarchy(category,
                                               degree,
                                               rows,
@@ -30,11 +28,11 @@ def regular_grid(degree, rows, cols, category, name, steps, deployment, active_c
     grid.generate_mesh(folder_name, verbose=verbose)
     
     deploy(path, folder_name, grid.input_data, grid.curr_um, degree, rows, cols, steps,
-            active_cells, target_percents, grid.init_heights, grid.plate_thickness, deployment,
-            verbose)
+           active_cells, target_percents, grid.init_heights, grid.plate_thickness,
+           gif_duration, deployment, verbose)
 
 def non_regular_grid(mesh_path, degree, category, name, steps, deployment, active_cells, target_percents,
-                     heights_fct=None, min_height=64, verbose=False):
+                     gif_duration=4, heights_fct=None, min_height=64, verbose=False):
     
     # default value for non-regular grid
     rows=cols=0
@@ -69,27 +67,31 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
     
     io, input_data, target_mesh, curr_um, plate_thickness_scaled, target_height_multiplier = \
         configuration.parse_input(input_path, handleBoundary = False, isHex = (degree == 6), use_target_surface = False)
-
-    init_heights = curr_um.umbrellaHeights
     
     deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
-            active_cells, target_percents, init_heights, plate_thickness_scaled, deployment,
-            verbose)
+            active_cells, target_percents, curr_um.umbrellaHeights, plate_thickness_scaled,
+           gif_duration, deployment, verbose)
 
 
 def deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
-            active_cells, target_percents, init_heights, plate_thickness,
-           deployment='linear', verbose=False):
+           active_cells, target_percents, init_heights, plate_thickness,
+           gif_duration=4,deployment='linear', verbose=False):
     
     write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents)
     
     for phase, (active_c, target_p) in enumerate(zip(active_cells, target_percents)):
+        if phase==0:
+            plot_undeployed_2D(input_data,
+                           curr_um,
+                           show_height=True,
+                           file_name = path+f'/heights.png',
+                           show_plot=verbose)
         plot_undeployed_2D(input_data,
                            curr_um,
                            show_height=False,
                            active_cells=active_c,
                            target_percents=target_p,
-                           file_name = path+f'/phase{phase+1}_undeployed.png',
+                           file_name = path+f'/undeployed/phase{phase+1}_undeployed.png',
                            show_plot=verbose)
         '''
         # should be done after deployement, but required for each phase...
@@ -111,14 +113,14 @@ def deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
                     steps=steps,
                     verbose=verbose)
     
-    img_duration = giff_total_time/sum(steps)
+    img_duration = gif_to_img_duration(gif_duration, sum(steps))
     stress_types = ['VonMises']#,'maxBending','Twisting']
 
     nb_phases = len(active_cells)
     for stress_type in stress_types:
         if verbose: print(f'\n-> generate images for {stress_type}.')
         for phase in range(nb_phases):
-            if verbose: print(f'  phase: {phase:0>2}')
+            if verbose: print(f'  phase: {phase+1:0>2}')
             generate_stresses_2D(path,
                                  phase,
                                  deployment,
@@ -134,8 +136,8 @@ def deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
         
     if verbose: print(f'  generate images for heights and energies.')
     for phase in range(nb_phases):
-        if verbose: print(f'phase: {phase:0>2}')
-        generate_heights_2D(path, phase, deployment,
+        if verbose: print(f'phase: {phase+1:0>2}')
+        generate_heights_2D(path, phase, deployment, plate_thickness, init_heights,
                             verbose=verbose)
     if verbose: print(f'  generate 1D images:')
     generate_heightsEnergies_1D([path],
@@ -143,5 +145,5 @@ def deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
                                 verbose=verbose)
     
     if verbose: print(f'\n-> generate GIFs.')
-    img_to_gif(path, deployment, stress_type, duration=img_duration, loop=2, verbose=verbose)
+    img_to_gif(path, deployment, stress_type, steps, duration=img_duration, loop=2, verbose=verbose)
     

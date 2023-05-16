@@ -3,8 +3,7 @@ import numpy as np
 
 import helpers_plots as help_
 import helpers_tools as help_tools
-import helpers_grid  as help_grid
-from tools import get_center_position
+from tools import get_center_position, height_to_percent
 
 # ======================================================================
 # ================================================================= 2D =
@@ -34,7 +33,7 @@ def plot_undeployed_2D(input_data, curr_um,
     else:         plt.close()
 
 def plot2D_stress(curr_um, connectivity, init_center_pos,
-                  active_cells=[], target_percents=[], stress_type='maxBending',
+                  active_cells=[], target_percents=[], stress_type='VonMises',
                   zero_as_extrem = False, show_percent=False):
     
     stress_matrix, min_, max_ = help_tools.get_smatrix_min_max(curr_um, stress_type, zero_as_extrem)
@@ -87,15 +86,14 @@ def fig_arm_stresses(connectivity,
     if show_plot: plt.show()
     else:         plt.close()
     
-def fig_height2D(connectivity, active_cells, heights, positions, show_plot, title, path_names, file_name=''):
-    h = np.array(heights)
-    h = (1-h/h.max())*100
-    h[h<0]=0
-    h[h>100]=100
+def fig_height2D(connectivity, active_cells, plate_thickness, init_heights, heights, positions, show_plot, title, path_names, file_name=''):
+    
+    indexes = list(range(len(heights))) # is this ok for regular grid ? I don't think so...
+    percents = np.array(height_to_percent(init_heights, plate_thickness, indexes, heights))
 
     fig, ax = get_ax()
-    help_.ax_dot_active_cell(ax, list(range(h.shape[0])), h,  positions, markersize=1, edgecolor='white')
-    help_.ax_dot_active_cell(ax, active_cells, h[active_cells], positions, markersize=1, edgecolor='black')
+    help_.ax_dot_active_cell(ax, indexes, percents,  positions, markersize=1, edgecolor='white')
+    help_.ax_dot_active_cell(ax, active_cells, percents[active_cells], positions, markersize=1, edgecolor='black')
     help_.ax_arms(ax, connectivity, positions)
     
     ax.set_title(title)

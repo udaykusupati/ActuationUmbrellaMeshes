@@ -71,7 +71,7 @@ def generate_stresses_2D(path, phase, deployment,
         if verbose: print(f'2D stresses images for step {step:0>2} successfully saved.')
 
 
-def generate_heights_2D(path, phase, deployment,
+def generate_heights_2D(path, phase, deployment, plate_thickness, init_heights,
                         stress_type='VonMises', show_plot=False, verbose=False):
     # ensure plt.rcParams.update() to update for next plots
     figure_2D.fig_empty()
@@ -81,19 +81,20 @@ def generate_heights_2D(path, phase, deployment,
     heights,             \
     active_cells,        \
     _,                   \
-    stresses_per_steps,  \
+    _,                   \
     _,                   \
     _                    \
         = helpers_images.read_results(path, phase+1, deployment, stress_type)
 
-    steps = stresses_per_steps.shape[0]-1
+    steps = heights.shape[0]-1
     
     title_h = '{{}} - {:0>3.0f}% deployed'
     path_heights = []
     for f in ['jpg', 'png']:
         path_heights.append(f'{path}/{deployment}_deployment/heights/{f}/phase{(phase+1):0>2}_'+'{{}}_{:0>3.0f}Deployed'+f'.{f}')
     
-    for step, heights_ in enumerate(heights):
+    
+    for step, heights_, in enumerate(heights):
         if phase>0 and step==0: continue
  
         title_step_h = title_h.format(step/steps*100)
@@ -102,7 +103,7 @@ def generate_heights_2D(path, phase, deployment,
             path_h.append(h.format(step/steps*100))
         
         # heights
-        figure_2D.fig_height2D(connectivity, active_cells, heights_, init_center_pos, show_plot, title_step_h.format('heights'), path_h, 'heights2D' )
+        figure_2D.fig_height2D(connectivity, active_cells, plate_thickness, init_heights, heights_, init_center_pos, show_plot, title_step_h.format('heights'), path_h, 'heights2D' )
         if verbose: print(f'2D heights images for step {step:0>2} successfully saved.')
 
 # --------------------------------------------------------------------------------
@@ -127,7 +128,7 @@ def generate_stresses_1D(paths, deployments,
         list_phases.append(phases)
         stresses_phase = []
         indexes_phase  = []
-        if nb_steps == 0: nb_steps = sum(steps)+1 # the first undeployed state (+1)
+        if nb_steps == 0: nb_steps = sum(steps)
         for phase in range(phases):
             connectivity_,_,_,_,_, stresses_,max_stresses_,_ =\
                 helpers_images.read_results(path, phase+1, dep, stress_type)
@@ -181,7 +182,7 @@ def generate_heightsEnergies_1D(paths, deployments,
         energies_phase           = []
         active_cells_phase       = []
         percents_per_steps_phase = []
-        if nb_steps == 0: nb_steps = sum(steps)+1 # the first undeployed state (+1)
+        if nb_steps == 0: nb_steps = sum(steps)
         for phase in range(phases):
             _,_, heights_, active_cells_, percents_per_steps_, stresses_, _, el_energies_ =\
                     helpers_images.read_results(path, phase+1, dep, stress_type)

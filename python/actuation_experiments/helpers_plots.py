@@ -24,6 +24,8 @@ def ax_plot_edges(ax, input_data):
         ax.plot(e[:, 0], e[:, 1], color="lightblue")
 
 def ax_dot_active_cell(ax, active_cells, target_percents, positions, markersize=1, edgecolor='black'):
+    '[RK] target_percents as color is not the wright deployment percent since phased deployement'
+    'but still, this is somehow a good indication as the first phase is still ok, and each last steps too'
     s = plt.rcParams['lines.markersize']**markersize # default s value is `rcParams['lines.markersize'] ** 2`
     lw = s/20 # width of marker's edge
     for i, p in zip(active_cells, target_percents):

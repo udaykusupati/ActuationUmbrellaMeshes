@@ -10,7 +10,6 @@ from configuration import deploy_umbrella_pin_rigid_motion
 from pipeline_helper import allEnergies
 
 import helpers_tools as help_
-import helpers_grid as help_grid
 
 # ======================================================================
 # =============================================================== GRID =
@@ -21,14 +20,18 @@ def set_actives_dep_weights(numUmbrellas, *active_cells,
     weights_per_cell[active_cells] = 1
     return np.einsum('i, j -> ij', dep_factors, weights_per_cell)
 
-def set_target_height(numUmbrellas, active_cell, target_heights):
+def set_target_height(numUmbrellas, thickness, active_cell, target_heights):
     target_height_multiplier = np.ones(numUmbrellas)*-1
-    target_height_multiplier[active_cell] = target_heights
+    target_height_multiplier[active_cell] = [h/thickness for h in target_heights]
     return target_height_multiplier
 
 def percent_to_height(init_height, thickness, indexes, percents):
-    return [((1-percent/100)*(init_height[idx]-thickness)+thickness)/thickness
+    return [(1-percent/100)*(init_height[idx]-thickness)+thickness
             for percent,idx in zip(percents,indexes)]
+
+def height_to_percent(init_height, thickness, indexes, heights):
+    return [max(0, min((1-(height-thickness)/(init_height[idx]-thickness))*100, 100))
+            for height,idx in zip(heights[indexes], indexes)]
 
 def get_center_position(curr_um):
     nb_cell = curr_um.numUmbrellas()
@@ -51,6 +54,8 @@ def create_dir_hierarchy(category_name, degree, rows, cols, deployment, folder_n
     if not os.path.exists(path_dep): os.makedirs(path_dep)
     else: raise ValueError(f'deployment {deployment} already computed.')
 
+    os.makedirs(path+f'/undeployed')
+    
     for type_ in ['heights', 'energies']:
         _sub_folder(path_dep+f'/{type_}')
 
@@ -88,13 +93,14 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
     for stress_type in stress_types:
         max_stresses_all[stress_type] = np.zeros((curr_um.numUmbrellas(), curr_um.numUmbrellas()))
 
+    nb_phases = len(active_cells_all)
     for phase, (active_cells, target_percents) in enumerate(zip(active_cells_all, target_percents_all)):
         if verbose:
-            print(f'\n==== PHASE {phase+1:0>2} ====')
+            print(f'\n==== PHASE {phase+1:0>2}/{nb_phases:0>2} ====')
             print(f'{active_cells    = }')
             print(f'{target_percents = }')
         
-        dep_weights = help_grid.set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
+        dep_weights = set_actives_dep_weights(curr_um.numUmbrellas(), active_cells)
         
         # to record values to write
         percents_per_steps = []
@@ -108,8 +114,8 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
             target_percents_s = _get_target_percents_s(deployment, s, steps[phase], prev_percents, target_percents)
             percents_per_steps.append(target_percents_s)
 
-            target_heights = help_grid.percent_to_height(init_heights, plate_thickness, active_cells, target_percents_s)
-            target_height_multiplier = help_grid.set_target_height(curr_um.numUmbrellas(), plate_thickness, active_cells, target_heights)
+            target_heights = percent_to_height(init_heights, plate_thickness, active_cells, target_percents_s)
+            target_height_multiplier = set_target_height(curr_um.numUmbrellas(), plate_thickness, active_cells, target_heights)
             success, _ = deploy_umbrella_pin_rigid_motion(curr_um,
                                                           plate_thickness,
                                                           target_height_multiplier,
@@ -145,14 +151,21 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
         
         # get openning percent of next phase's active units
         if phase < max_phase:
-            prev_percents = help_grid.height_to_percent(init_heights, plate_thickness, active_cells_all[phase+1], curr_um.umbrellaHeights)
+            prev_percents = height_to_percent(init_heights, plate_thickness, active_cells_all[phase+1], curr_um.umbrellaHeights)
     
     # write max deployment stress
     for stress_type in stress_types:
         path_stresses = path+f'/{deployment}_deployment/stresses/{stress_type}/values'
         _write_rows(path_stresses+f'/max_stresses.csv', max_stresses_all[stress_type])
 
-def img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=False):
+
+        
+def gif_to_img_duration(gif_duration, steps):
+    return 1000*gif_duration/(steps+1)
+        
+def img_to_gif(path, deployment, stress_type, steps, duration=500, loop=2, verbose=False):
+    img_to_gif_undeployed(f'{path}/undeployed', steps, duration=duration, loop=loop)
+    
     path = f'{path}/{deployment}_deployment'
     img_to_gif_1D(path, stress_type, duration=duration, loop=loop)
     if verbose: print('gif 1D done')
@@ -160,21 +173,38 @@ def img_to_gif(path, deployment, stress_type, duration=500, loop=2, verbose=Fals
     if verbose: print('gif 2D done')
 
 def img_to_gif_1D(path, stress_type, duration=500, loop=2):
-    _img_to_gif_stress_1D (path, stress_type, duration=duration, loop=loop)
-    _img_to_gif_heights_1D(path,              duration=duration, loop=loop)
-    _img_to_gif_energies  (path,              duration=duration, loop=loop)
+    img_to_gif_stress_1D (path, stress_type, duration=duration, loop=loop)
+    img_to_gif_heights_1D(path,              duration=duration, loop=loop)
+    img_to_gif_energies  (path,              duration=duration, loop=loop)
     
 def img_to_gif_2D(path, stress_type, duration=500, loop=2):
     _img_to_gif_stress_2D (path, stress_type, duration=duration, loop=loop)
     _img_to_gif_heights_2D(path,              duration=duration, loop=loop)
     
-def img_to_gif_all(path, gif_name, duration=500, loop=2):
+def img_to_gif_all(path, gif_name, duration=500, loop=2, steps=None):
     '''
     create gif `gif_name` with all files at path
     '''
-    _create_gif(f'{path}/*.*', f'{path}/{gif_name}.gif', duration, loop)
+    _create_gif(f'{path}/*.*', f'{path}/{gif_name}.gif', duration, loop, steps)
 
-        
+def img_to_gif_stress_1D(path, stress_type, duration=500, loop=2):
+    path_base = f'{path}/stresses/{stress_type}'
+    names = ['stress_curve','ordered_stress_scatter', 'stress_scatter']
+    _gif_list(path_base, names, duration, loop)
+    
+def img_to_gif_heights_1D(path, duration=500, loop=2):
+    path_base = f'{path}/heights'
+    names = ['heights_curve', 'ordered_heights_curve']
+    _gif_list(path_base, names, duration, loop)
+
+def img_to_gif_energies(path, duration=500, loop=2):
+    path_base = f'{path}/energies'
+    names = ['energies']
+    _gif_list(path_base, names, duration, loop)
+    
+def img_to_gif_undeployed(path, steps, duration=500, loop=2):
+    img_to_gif_all(path, 'all_undeployed', duration, loop, steps)
+
 def linear_heights(a,b, step=1):
     '''
     from undeployed to deployed :
@@ -240,37 +270,29 @@ def _get_target_percents_s(deployment, s, steps, prev_target_percents, target_pe
     else : raise ValueError(f'deployment unknown: {deployment} (choises:\'linear\',\'incremental\',\'max\')')
     '''
 
-def _create_gif(images_name, gif_name, duration, loop):
+def _create_gif(images_name, gif_name, duration, loop, steps=None):
+    factor = 1 if steps==None else (sum(steps)+1)/len(steps) # for undeployed meshes
     frames = [Image.open(image) for image in sorted(glob.glob(images_name))]
     frame_one = frames[0]
-    frame_one.save(gif_name, append_images=frames[1:], save_all=True, duration=duration, loop=loop)
+    frame_one.save(gif_name, append_images=frames[1:], save_all=True, duration=factor*duration, loop=loop)
+    # duration: display time of each frame in milliseconds
+    # loop : number of loops (0->infint, -1->no loop)
+    
     
 def _gif_list(path, ls, duration, loop):
     for name in ls:
         _create_gif(f'{path}/jpg/phase??_{name}*.jpg',
                    f'{path}/jpg/gif/{name}.gif',
                    duration, loop)
-def _img_to_gif_stress_1D(path, stress_type, duration=500, loop=2):
-    path_base = f'{path}/stresses/{stress_type}'
-    names = ['stress_curve','ordered_stress_scatter', 'stress_scatter']
-    _gif_list(path_base, names, duration, loop)
+
 def _img_to_gif_stress_2D(path, stress_type, duration=500, loop=2):
     path_base = f'{path}/stresses/{stress_type}'
     names = ['overall', 'perSteps', 'own',]
     _gif_list(path_base, names, duration, loop)
-
-def _img_to_gif_heights_1D(path, duration=500, loop=2):
-    path_base = f'{path}/heights'
-    names = ['heights_curve', 'ordered_heights_curve']
-    _gif_list(path_base, names, duration, loop)
+    
 def _img_to_gif_heights_2D(path, duration=500, loop=2):
     path_base = f'{path}/heights'
     names = ['heights2D']
-    _gif_list(path_base, names, duration, loop)
-
-def _img_to_gif_energies(path, duration=500, loop=2):
-    path_base = f'{path}/energies'
-    names = ['energies']
     _gif_list(path_base, names, duration, loop)
 
 def _write_rows(path, data):

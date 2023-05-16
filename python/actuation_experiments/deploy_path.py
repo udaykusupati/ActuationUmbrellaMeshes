@@ -1,45 +1,34 @@
 import networkx as nx
+import matplotlib.pyplot as plt
+from collections import Counter # for unique element in surroundings of bumps
 
 import sys
 sys.path.append('..')
 import configuration
 
 from deployment import deploy
-from tools import create_dir_hierarchy
+from tools import create_dir_hierarchy, gif_to_img_duration
 
-# deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
-#             active_cells, target_percents, init_heights, plate_thickness, deployment,
-#             verbose=False)
 
-'''
-- generate mesh
-- generate graph
-- get shortest path
-- deploy
-'''
-
-def deploy_path(input_path, nb_steps, category, verbose=True):
-    
+def deploy_path(input_path, nb_steps, category, gif_duration=4, strategies=None, baseline=True, verbose=True):
+       
+    if strategies==None: strategies=get_strategies()
+    nb_strategies = len(strategies)
+        
     io, input_data, target_mesh, curr_um, plate_thickness_scaled, target_height_multiplier = \
         configuration.parse_input(input_path, handleBoundary = False, isHex = False, use_target_surface = False)
 
-    graph = nx.Graph()
-    
-    height_as_node = []
-    for i,h in enumerate(curr_um.umbrellaHeights):
-        height_as_node.append((i,{'height': h}))
-    graph.add_nodes_from(height_as_node)
-    
-    wighted_edge = []
-    for i,j in input_data['umbrella_connectivity']:
-        wighted_edge.append((i,j,abs(curr_um.umbrellaHeights[i] - curr_um.umbrellaHeights[j])))
-    graph.add_weighted_edges_from(wighted_edge)
+    graph = create_graph(input_data['umbrella_connectivity'], curr_um)
 
-    paths = shortes_paths(graph, *find_extrems(graph))
+    bumps, depressions = find_extrems(graph)
+    surrounds_bumps = surround_bumps(graph, bumps)
+    paths = shortes_paths(graph, bumps, depressions)
     
-    # aps : active_units, target_percents, steps
-    aps_strategies = [s(paths, nb_steps) for s in _get_strategies()]
-        
+    # check that all strategies are compatible with nb_steps
+    for strat  in strategies:
+        strat(paths, nb_steps)
+    
+    
     degree = 3
     rows = 0
     cols = 0
@@ -49,32 +38,34 @@ def deploy_path(input_path, nb_steps, category, verbose=True):
     saved_paths = []
     
     # BASELINE - active all cells:
-    strat = _units_all_at_once
-    if verbose: print(f"\n\n===== {strat.__name__[1:]} =====\n")
-    active_units, target_percents, steps = strat(paths, curr_um.numUmbrellas(), nb_steps)
-    folder_name , path = create_dir_hierarchy(category,
-                                              degree,
-                                              rows,
-                                              cols,
-                                              deployment,
-                                              strat.__name__[1:])
-    saved_paths.append(path)
+    if baseline:
+        strat = _units_all_at_once
+        if verbose: print(f"\n\n===== {strat.__name__[1:]} =====\n")
+        active_units, target_percents, steps = strat(paths, curr_um.numUmbrellas(), nb_steps)
+        folder_name , path = create_dir_hierarchy(category,
+                                                  degree,
+                                                  rows,
+                                                  cols,
+                                                  deployment,
+                                                  strat.__name__[1:])
+        saved_paths.append(path)
 
-    deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
-            active_units, target_percents, init_heights, plate_thickness_scaled, deployment,
-            verbose)
+        deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
+               active_units, target_percents, init_heights, plate_thickness_scaled,
+               gif_duration, deployment, verbose)
         
-    strats = _get_strategies()
-    for i, strat in enumerate(strats):
+    # Other Stragegies
+    for i, strat in enumerate(strategies):
         if verbose: print("\n\n=====")
         if verbose: print(   f"===== {strat.__name__[1:]} =====")
-        if verbose: print(   f"===== {i+1:0>2}/{len(strats):0>2}")
+        if verbose: print(   f"===== {i+1:0>2}/{nb_strategies:0>2}")
         
         # re-generate curr_um for undeployed plot...
         io, input_data, target_mesh, curr_um, plate_thickness_scaled, target_height_multiplier = \
         configuration.parse_input(input_path, handleBoundary = False, isHex = False, use_target_surface = False)
         
         active_units, target_percents, steps = strat(paths, nb_steps)
+        
         folder_name , path = create_dir_hierarchy(category,
                                                   degree,
                                                   rows,
@@ -84,12 +75,25 @@ def deploy_path(input_path, nb_steps, category, verbose=True):
         saved_paths.append(path)
         
         deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
-                active_units, target_percents, init_heights, plate_thickness_scaled, deployment,
-                verbose)
+               active_units, target_percents, init_heights, plate_thickness_scaled,
+               gif_duration, deployment, verbose)
     
-    return saved_paths
+    return saved_paths    
     
+def create_graph(connectivity, curr_um):
+    graph = nx.Graph()
     
+    height_as_node = []
+    for i,h in enumerate(curr_um.umbrellaHeights):
+        height_as_node.append((i,{'height': h}))
+    graph.add_nodes_from(height_as_node)
+    
+    wighted_edge = []
+    for i,j in connectivity:
+        wighted_edge.append((i,j,abs(curr_um.umbrellaHeights[i] - curr_um.umbrellaHeights[j])))
+    graph.add_weighted_edges_from(wighted_edge)
+    
+    return graph
     
 def find_extrems(graph, drop_boudary=True, degree=3):
     bumps = []
@@ -105,25 +109,89 @@ def find_extrems(graph, drop_boudary=True, degree=3):
         elif (is_depression): depression.append(node)
     return bumps, depression
 
+def surround_bumps(graph, bumps):
+    'broken if drop_boundary=False'
+    graph_copy = graph.copy()
+    neighbors = []
+    for bump in bumps:
+        neighbors.append([n for n in graph_copy.neighbors(bump)])
+        graph_copy.remove_node(bump)
+    
+    surround_neighbors = {}
+    degree = 3
+    neigh_path_len = 5
+    for i,(b,n) in enumerate(zip(bumps,neighbors)):
+        paths = []
+        for d in range(degree):
+            source=n[d]
+            target=n[(d+1)%degree]
+            # are they boundary ? (the shortest path thus goes through the 3rd neighbor)
+            if len(list(graph_copy.neighbors(source)))==1 and\
+               len(list(graph_copy.neighbors(target)))==1: continue
+            paths.append(nx.shortest_path(graph_copy, source=source, target=target, weight=None))
+        
+        # get rid of duplicate units
+        init_path = 0
+        if len(paths)==degree : init_path = 1
+        surround_neighbors[b] = paths[0][init_path:]
+        for path in paths[1:]:
+            surround_neighbors[b].extend(path[1:])
+    return surround_neighbors
+
 def shortes_paths(graph, bumps, depressions):
     paths = []
     for b in bumps:
         shortest = []
         for d in depressions:
-            shortest.append(nx.shortest_path(graph,source=b,target=d))
+            shortest.append(nx.shortest_path(graph,source=b,target=d, weight='weight'))
         lst = min(shortest, key=len)
         paths.append(lst)
     return paths
 
+# ======================================================================
+# === DRAW ===
+# ======================================================================
+def draw_height(graph, pos, min_size=100, max_size=600):
+    scaled_height = _scaled_height(graph, min_size=min_size, max_size=max_size)
+    nx.draw(graph, pos=pos, with_labels=True, node_size=scaled_height)
+    plt.show()
+    
+def draw_height_extrems(graph, pos, bumps, depressions, min_size=100, max_size=600, colors_default=None):
+    colors = colors_default.copy() if not colors_default==None else ['#1f78b4']*len(graph)# '#1f78b4' is nx default value
+    for bump in bumps:
+        colors[bump] = (1,0,0)
+    for dep in depressions:
+        colors[dep] = (0,1,0)
+    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size)
+    
+def draw_height_path(graph, pos, paths, min_size=100, max_size=600, colors_default=None):
+    colors = colors_default.copy() if not colors_default==None else ['#1f78b4']*len(graph)# '#1f78b4' is nx default value
+    for path in paths:
+        path_length = len(path)-1
+        for i, node in enumerate(path): # path is from bump to depression
+            g = i/path_length
+            r = 1-g
+            b = 0
+            colors[node] = (r,g,b)
+    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size)
+    
+def draw_height_surrounds(graph, pos, surrounds, min_size=100, max_size=600, colors_default=None):
+    colors = colors_default.copy() if not colors_default==None else ['#1f78b4']*len(graph)# '#1f78b4' is nx default value
+    
+    for s in surrounds.items():
+        colors[s[0]] = (1,0,0) # bumps in red
+        for neighbor in s[1]:
+            colors[neighbor] = (0,1,0) # bumps in red
+    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size)
+    
 
+# ======================================================================
 # === Strategies ===
-
-def _get_strategies():
+# ======================================================================
+def get_strategies():
     return *_get_paths_strategies(),\
            *_get_bumps_strategies(),\
            *_get_actuators_strategies()
-
-
 # -----------
 # --- ALL ---
 # -----------
@@ -244,9 +312,9 @@ def _get_actuators_strategies():
            _actuators_two_per_path_end
 
 
-# ---------------
-# --- HELPERS ---
-# ---------------
+# ======================================================================
+# === HELPERS ===
+#======================================================================
 def _get_percents(pahts):
     return [[100]*len(p) for p in pahts]
 
@@ -270,3 +338,14 @@ def _reverse_path(paths):
     for path in paths:
         reversed_paths.append([x for x in reversed(path)])
     return reversed_paths
+
+def _scaled_height(graph, min_size=100, max_size=600):
+    heights = [attr[1]['height'] for attr in graph.nodes.data()]
+    min_h, max_h = min(heights), max(heights)
+    factor = (max_size-min_size)/(max_h-min_h)
+    return [(h-min_h)*factor+min_size for h in heights]
+
+def _draw_colored(graph, pos, colors, min_size=100, max_size=600):
+    scaled_height = _scaled_height(graph, min_size=min_size, max_size=max_size)
+    nx.draw(graph, pos=pos, with_labels=False, node_size=scaled_height, node_color=colors)
+    plt.show()
