@@ -95,7 +95,7 @@ def create_graph(connectivity, curr_um):
     
     return graph
     
-def find_extrems(graph, drop_extrems_at_boundary=True, drop_boudary=False, degree=3):
+def find_extrems(graph, surroundings=False, drop_extrems_at_boundary=True, drop_boudary=False, degree=3):
     bumps = []
     depression = []
     
@@ -108,7 +108,8 @@ def find_extrems(graph, drop_extrems_at_boundary=True, drop_boudary=False, degre
         is_bump = True
         is_depression = True
         if drop_extrems_at_boundary and graph_copy.degree(node)<degree: continue
-        for neighbor in graph_copy.neighbors(node):
+        neighbors = surround_bumps(graph_copy, [node]) if surroundings else graph_copy.neighbors(node)
+        for neighbor in neighbors:
             if graph_copy.nodes[neighbor]['height'] > graph_copy.nodes[node]['height']: is_bump = False
             else : is_depression = False
         if (is_bump): bumps.append(node)
@@ -169,8 +170,19 @@ def surround_bumps(graph, bumps, level=1, verbose=False, pos=None):
     return surr_level
 
 
-def shortes_paths(graph, bumps, depressions):
+def shortes_paths(graph, bumps, depressions, force_smalest_dep=False):
     paths = []
+    if force_smalest_dep:
+        dep_heights = [(idx, data['height']) for (idx, data) in dict(graph.nodes.data()).items() if idx in depressions]
+        dep_min = min(dep_heights, key=lambda x: x[1])[0]
+        
+        shortest = []
+        for b in bumps:
+            shortest.append(nx.shortest_path(graph,source=b,target=dep_min, weight='weight'))
+        lst = min(shortest, key=len)
+        paths.append(lst)
+        bumps = [b for b in bumps if b!=lst[0]] # from bump to depression -> bump it 1st item
+        
     for b in bumps:
         shortest = []
         for d in depressions:
@@ -182,6 +194,10 @@ def shortes_paths(graph, bumps, depressions):
 # ======================================================================
 # === DRAW ===
 # ======================================================================
+'''
+# light_grey = 211/255
+# colors_default = [(light_grey,light_grey,light_grey)] * len(graph) # light_grey
+'''
 def draw_height(graph, pos, min_size=100, max_size=600, with_labels=False):
     scaled_height = _scaled_height(graph, min_size=min_size, max_size=max_size)
     nx.draw(graph, pos=pos, with_labels=with_labels, node_size=scaled_height)
