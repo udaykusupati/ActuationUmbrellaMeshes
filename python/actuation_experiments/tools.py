@@ -163,7 +163,7 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
 def gif_to_img_duration(gif_duration, steps):
     return 1000*gif_duration/(steps+1)
         
-def img_to_gif(path, deployment, stress_type, steps, duration=500, loop=2, verbose=False):
+def img_to_gif(path, deployment, stress_type, steps, duration=500, loop=0, verbose=False):
     img_to_gif_undeployed(f'{path}/undeployed', steps, duration=duration, loop=loop)
     
     path = f'{path}/{deployment}_deployment'
@@ -172,7 +172,7 @@ def img_to_gif(path, deployment, stress_type, steps, duration=500, loop=2, verbo
     img_to_gif_2D(path, stress_type, duration=duration, loop=loop)
     if verbose: print('gif 2D done')
 
-def img_to_gif_1D(path, stress_type, duration=500, loop=2):
+def img_to_gif_1D(path, stress_type, duration=500, loop=0):
     img_to_gif_stress_1D (path, stress_type, duration=duration, loop=loop)
     img_to_gif_heights_1D(path,              duration=duration, loop=loop)
     img_to_gif_energies  (path,              duration=duration, loop=loop)
@@ -187,22 +187,22 @@ def img_to_gif_all(path, gif_name, duration=500, loop=2, steps=None):
     '''
     _create_gif(f'{path}/*.*', f'{path}/{gif_name}.gif', duration, loop, steps)
 
-def img_to_gif_stress_1D(path, stress_type, duration=500, loop=2):
+def img_to_gif_stress_1D(path, stress_type, duration=500, loop=0):
     path_base = f'{path}/stresses/{stress_type}'
     names = ['stress_curve','ordered_stress_scatter', 'stress_scatter']
     _gif_list(path_base, names, duration, loop)
     
-def img_to_gif_heights_1D(path, duration=500, loop=2):
+def img_to_gif_heights_1D(path, duration=500, loop=0):
     path_base = f'{path}/heights'
     names = ['heights_curve', 'ordered_heights_curve']
     _gif_list(path_base, names, duration, loop)
 
-def img_to_gif_energies(path, duration=500, loop=2):
+def img_to_gif_energies(path, duration=500, loop=0):
     path_base = f'{path}/energies'
     names = ['energies']
     _gif_list(path_base, names, duration, loop)
     
-def img_to_gif_undeployed(path, steps, duration=500, loop=2):
+def img_to_gif_undeployed(path, steps, duration=500, loop=0):
     img_to_gif_all(path, 'all_undeployed', duration, loop, steps)
 
 def linear_heights(a,b, step=1):
@@ -285,12 +285,12 @@ def _gif_list(path, ls, duration, loop):
                    f'{path}/jpg/gif/{name}.gif',
                    duration, loop)
 
-def _img_to_gif_stress_2D(path, stress_type, duration=500, loop=2):
+def _img_to_gif_stress_2D(path, stress_type, duration=500, loop=0):
     path_base = f'{path}/stresses/{stress_type}'
     names = ['overall', 'perSteps', 'own',]
     _gif_list(path_base, names, duration, loop)
     
-def _img_to_gif_heights_2D(path, duration=500, loop=2):
+def _img_to_gif_heights_2D(path, duration=500, loop=0):
     path_base = f'{path}/heights'
     names = ['heights2D']
     _gif_list(path_base, names, duration, loop)

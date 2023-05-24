@@ -126,7 +126,7 @@ def surround_bumps(graph, bumps):
             source=n[d]
             target=n[(d+1)%degree]
             # are they boundary ? (the shortest path thus goes through the 3rd neighbor)
-            if len(list(graph_copy.neighbors(source)))==1 and\
+            if len(list(graph_copy.neighbors(source)))==1  and\
                len(list(graph_copy.neighbors(target)))==1: continue
             paths.append(nx.shortest_path(graph_copy, source=source, target=target, weight=None))
         
@@ -151,20 +151,20 @@ def shortes_paths(graph, bumps, depressions):
 # ======================================================================
 # === DRAW ===
 # ======================================================================
-def draw_height(graph, pos, min_size=100, max_size=600):
+def draw_height(graph, pos, min_size=100, max_size=600, with_labels=False):
     scaled_height = _scaled_height(graph, min_size=min_size, max_size=max_size)
-    nx.draw(graph, pos=pos, with_labels=True, node_size=scaled_height)
+    nx.draw(graph, pos=pos, with_labels=with_labels, node_size=scaled_height)
     plt.show()
     
-def draw_height_extrems(graph, pos, bumps, depressions, min_size=100, max_size=600, colors_default=None):
+def draw_height_extrems(graph, pos, bumps, depressions, min_size=100, max_size=600, colors_default=None, with_labels=False):
     colors = colors_default.copy() if not colors_default==None else ['#1f78b4']*len(graph)# '#1f78b4' is nx default value
     for bump in bumps:
         colors[bump] = (1,0,0)
     for dep in depressions:
         colors[dep] = (0,1,0)
-    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size)
+    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size, with_labels=with_labels)
     
-def draw_height_path(graph, pos, paths, min_size=100, max_size=600, colors_default=None):
+def draw_height_path(graph, pos, paths, min_size=100, max_size=600, colors_default=None, with_labels=False):
     colors = colors_default.copy() if not colors_default==None else ['#1f78b4']*len(graph)# '#1f78b4' is nx default value
     for path in paths:
         path_length = len(path)-1
@@ -173,16 +173,16 @@ def draw_height_path(graph, pos, paths, min_size=100, max_size=600, colors_defau
             r = 1-g
             b = 0
             colors[node] = (r,g,b)
-    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size)
+    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size, with_labels=with_labels)
     
-def draw_height_surrounds(graph, pos, surrounds, min_size=100, max_size=600, colors_default=None):
+def draw_height_surrounds(graph, pos, surrounds, min_size=100, max_size=600, colors_default=None, with_labels=False):
     colors = colors_default.copy() if not colors_default==None else ['#1f78b4']*len(graph)# '#1f78b4' is nx default value
     
     for s in surrounds.items():
         colors[s[0]] = (1,0,0) # bumps in red
         for neighbor in s[1]:
             colors[neighbor] = (0,1,0) # bumps in red
-    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size)
+    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size, with_labels=with_labels)
     
 
 # ======================================================================
@@ -345,7 +345,7 @@ def _scaled_height(graph, min_size=100, max_size=600):
     factor = (max_size-min_size)/(max_h-min_h)
     return [(h-min_h)*factor+min_size for h in heights]
 
-def _draw_colored(graph, pos, colors, min_size=100, max_size=600):
+def _draw_colored(graph, pos, colors, min_size=100, max_size=600, with_labels=False):
     scaled_height = _scaled_height(graph, min_size=min_size, max_size=max_size)
-    nx.draw(graph, pos=pos, with_labels=False, node_size=scaled_height, node_color=colors)
+    nx.draw(graph, pos=pos, with_labels=with_labels, node_size=scaled_height, node_color=colors)
     plt.show()
