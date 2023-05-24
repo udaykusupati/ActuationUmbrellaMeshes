@@ -95,21 +95,27 @@ def create_graph(connectivity, curr_um):
     
     return graph
     
-def find_extrems(graph, drop_boudary=True, degree=3):
+def find_extrems(graph, drop_extrems_at_boundary=True, drop_boudary=False, degree=3):
     bumps = []
     depression = []
-    for node in graph.nodes:
+    
+    graph_copy = graph.copy()
+    if drop_boudary:
+        boundary_nodes = [n[0] for n in graph_copy.degree() if n[1]<degree]
+        graph_copy.remove_nodes_from(boundary_nodes)
+    
+    for node in graph_copy.nodes:
         is_bump = True
         is_depression = True
-        if drop_boudary and len(list(graph.neighbors(node)))<degree: continue
-        for neighbor in graph.neighbors(node):
-            if graph.nodes[neighbor]['height'] > graph.nodes[node]['height']: is_bump = False
+        if drop_extrems_at_boundary and graph_copy.degree(node)<degree: continue
+        for neighbor in graph_copy.neighbors(node):
+            if graph_copy.nodes[neighbor]['height'] > graph_copy.nodes[node]['height']: is_bump = False
             else : is_depression = False
         if (is_bump): bumps.append(node)
         elif (is_depression): depression.append(node)
     return bumps, depression
 
-def surround_bumps(graph, bumps, level=1, verbose=False):
+def surround_bumps(graph, bumps, level=1, verbose=False, pos=None):
     def surround_neigh(graph, curr_surr, prev_surr, cum_surr):
         # first level is quite different
         if len(curr_surr) == 1:
@@ -159,7 +165,7 @@ def surround_bumps(graph, bumps, level=1, verbose=False):
             surr_level.extend(surr)
             dic[key] = surr, p
         if surr_level==[] : break # no more medium to propagate the wave
-        if (verbose): dp.draw_height_extrems(graph, pos, bumps, surr_level, with_labels=True)
+        if (verbose): draw_height_extrems(graph, pos, bumps, surr_level, with_labels=True)
     return surr_level
 
 
@@ -198,15 +204,6 @@ def draw_height_path(graph, pos, paths, min_size=100, max_size=600, colors_defau
             r = 1-g
             b = 0
             colors[node] = (r,g,b)
-    _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size, with_labels=with_labels)
-    
-def draw_height_surrounds(graph, pos, surrounds, min_size=100, max_size=600, colors_default=None, with_labels=False):
-    colors = colors_default.copy() if not colors_default==None else ['#1f78b4']*len(graph)# '#1f78b4' is nx default value
-    
-    for s in surrounds.items():
-        colors[s[0]] = (1,0,0) # bumps in red
-        for neighbor in s[1]:
-            colors[neighbor] = (0,1,0) # bumps in red
     _draw_colored(graph, pos, colors, min_size=min_size, max_size=max_size, with_labels=with_labels)
     
 
