@@ -109,34 +109,59 @@ def find_extrems(graph, drop_boudary=True, degree=3):
         elif (is_depression): depression.append(node)
     return bumps, depression
 
-def surround_bumps(graph, bumps):
-    'broken if drop_boundary=False'
-    graph_copy = graph.copy()
-    neighbors = []
-    for bump in bumps:
-        neighbors.append([n for n in graph_copy.neighbors(bump)])
-        graph_copy.remove_node(bump)
-    
-    surround_neighbors = {}
-    degree = 3
-    neigh_path_len = 5
-    for i,(b,n) in enumerate(zip(bumps,neighbors)):
-        paths = []
-        for d in range(degree):
-            source=n[d]
-            target=n[(d+1)%degree]
-            # are they boundary ? (the shortest path thus goes through the 3rd neighbor)
-            if len(list(graph_copy.neighbors(source)))==1  and\
-               len(list(graph_copy.neighbors(target)))==1: continue
-            paths.append(nx.shortest_path(graph_copy, source=source, target=target, weight=None))
+def surround_bumps(graph, bumps, level=1, verbose=False):
+    def surround_neigh(graph, curr_surr, prev_surr, cum_surr):
+        # first level is quite different
+        if len(curr_surr) == 1:
+            center = curr_surr[0]
+            # 1st degre neighbors (direct link to center)
+            neighbors_1 = [n1 for n1 in graph.neighbors(center)]
+            # 2nd degre neighbors
+            neighbors_2 = []
+            for n1 in neighbors_1:
+                neighbors_2.extend([n2 for n2 in graph.neighbors(n1) if n2 != center])
+            # 3rd degre neighbors
+            neighbors_3 = []
+            for n2 in neighbors_2:
+                for nn2 in graph.neighbors(n2):
+                    if nn2 in neighbors_1: continue
+                    if nn2 in neighbors_3: continue
+                    for nnn2 in graph.neighbors(nn2):
+                        if nnn2 == n2: continue
+                        if nnn2 in neighbors_2: neighbors_3.append(nn2)
+            next_surr = neighbors_1 + neighbors_2 + neighbors_3
+            return next_surr, curr_surr
         
-        # get rid of duplicate units
-        init_path = 0
-        if len(paths)==degree : init_path = 1
-        surround_neighbors[b] = paths[0][init_path:]
-        for path in paths[1:]:
-            surround_neighbors[b].extend(path[1:])
-    return surround_neighbors
+        # Level greater than 1
+        neighbors = []
+        for cs in curr_surr:
+            neighbors.extend([n for n in graph.neighbors(cs) if n not in curr_surr and n not in prev_surr])
+        next_surr = []
+        for n in neighbors:
+            next_surr.append(n)
+            next_surr.extend([nn for nn in graph.neighbors(n) if nn not in curr_surr
+                                                              and nn not in next_surr
+                                                              and nn not in cum_surr])
+        return next_surr, curr_surr
+    
+    dic = {}
+    for b in bumps:
+        dic[b] = [b], []
+    shared_graph = graph.copy()
+    
+    cum_surr = [] # cumulative surroundings
+    for l in range(level):
+        surr_level = []
+        for key,(curr, prev) in dic.items():
+            c, p = surround_neigh(shared_graph, curr, prev, cum_surr)
+            surr = [c0 for c0 in c if c0 not in cum_surr]
+            cum_surr.extend(surr)
+            surr_level.extend(surr)
+            dic[key] = surr, p
+        if surr_level==[] : break # no more medium to propagate the wave
+        if (verbose): dp.draw_height_extrems(graph, pos, bumps, surr_level, with_labels=True)
+    return surr_level
+
 
 def shortes_paths(graph, bumps, depressions):
     paths = []
