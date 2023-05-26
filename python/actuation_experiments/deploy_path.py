@@ -21,7 +21,7 @@ def deploy_path(input_path, nb_steps, category, gif_duration=4, strategies=None,
     graph = create_graph(input_data['umbrella_connectivity'], curr_um)
 
     bumps, depressions = find_extrems(graph)
-    surrounds_bumps = surround_bumps(graph, bumps)
+    surrounds_bumps = surround_bumps(graph, bumps)[-1]
     paths = shortes_paths(graph, bumps, depressions)
     
     # check that all strategies are compatible with nb_steps
@@ -99,25 +99,29 @@ def find_extrems(graph, surroundings=False, drop_extrems_at_boundary=True, drop_
     bumps = []
     depression = []
     
+    boundary = get_boundary(graph)
+    
     graph_copy = graph.copy()
-    if drop_boudary:
-        boundary_nodes = [n[0] for n in graph_copy.degree() if n[1]<degree]
-        graph_copy.remove_nodes_from(boundary_nodes)
+    if drop_boudary: graph_copy.remove_nodes_from(boundary)
     
     for node in graph_copy.nodes:
         is_bump = True
         is_depression = True
         if drop_extrems_at_boundary and graph_copy.degree(node)<degree: continue
-        neighbors = surround_bumps(graph_copy, [node]) if surroundings else graph_copy.neighbors(node)
+        neighbors = surround_bumps(graph, [node])[-1] if surroundings else graph_copy.neighbors(node)
+        # if compute 'surround_bumps' with graph_copy, we can have some node with only one link as `bump`
+        # and then, the surroundings are not complete... | As it do not alter the graph, it's totally fine
+        
         for neighbor in neighbors:
-            if graph_copy.nodes[neighbor]['height'] > graph_copy.nodes[node]['height']: is_bump = False
+            if drop_boudary and neighbor in boundary : continue
+            if graph.nodes[neighbor]['height'] > graph.nodes[node]['height']: is_bump = False
             else : is_depression = False
         if (is_bump): bumps.append(node)
         elif (is_depression): depression.append(node)
     return bumps, depression
 
 def surround_bumps(graph, bumps, level=1, verbose=False, pos=None):
-    def surround_neigh(graph, curr_surr, prev_surr, cum_surr):
+    def surround_neigh(graph, curr_surr, prev_surr):
         # first level is quite different
         if len(curr_surr) == 1:
             center = curr_surr[0]
@@ -148,26 +152,29 @@ def surround_bumps(graph, bumps, level=1, verbose=False, pos=None):
             next_surr.append(n)
             next_surr.extend([nn for nn in graph.neighbors(n) if nn not in curr_surr
                                                               and nn not in next_surr
-                                                              and nn not in cum_surr])
+                                                              and not graph.nodes.data()[nn]['visited']])
         return next_surr, curr_surr
     
     dic = {}
     for b in bumps:
         dic[b] = [b], []
     shared_graph = graph.copy()
+    nx.set_node_attributes(shared_graph, False, 'visited')
     
-    cum_surr = [] # cumulative surroundings
+    surr_levels = []
     for l in range(level):
         surr_level = []
         for key,(curr, prev) in dic.items():
-            c, p = surround_neigh(shared_graph, curr, prev, cum_surr)
-            surr = [c0 for c0 in c if c0 not in cum_surr]
-            cum_surr.extend(surr)
+            c, p = surround_neigh(shared_graph, curr, prev)
+            surr = [c0 for c0 in c if not shared_graph.nodes.data()[c0]['visited']]
+            nx.set_node_attributes(shared_graph, {key:True for key in surr}, 'visited')
             surr_level.extend(surr)
             dic[key] = surr, p
         if surr_level==[] : break # no more medium to propagate the wave
         if (verbose): draw_height_extrems(graph, pos, bumps, surr_level, with_labels=True)
-    return surr_level
+        surr_levels.append(surr_level)
+    
+    return list(reversed(surr_levels)) # bumps are last steps
 
 
 def shortes_paths(graph, bumps, depressions, force_smalest_dep=False):
@@ -190,6 +197,10 @@ def shortes_paths(graph, bumps, depressions, force_smalest_dep=False):
         lst = min(shortest, key=len)
         paths.append(lst)
     return paths
+
+def get_boundary(graph, degree=3):
+    # return [n for n in graph.nodes if graph.degree(n)<degree]
+    return [n[0] for n in graph.degree() if n[1]<degree]
 
 # ======================================================================
 # === DRAW ===
@@ -229,7 +240,8 @@ def draw_height_path(graph, pos, paths, min_size=100, max_size=600, colors_defau
 def get_strategies():
     return *_get_paths_strategies(),\
            *_get_bumps_strategies(),\
-           *_get_actuators_strategies()
+           *_get_actuators_strategies(),\
+            _boundary_units
 # -----------
 # --- ALL ---
 # -----------
@@ -349,6 +361,14 @@ def _get_actuators_strategies():
            _actuators_two_per_path,\
            _actuators_two_per_path_end
 
+
+# ----------------
+# --- BOUNDARY ---
+# ----------------
+def _boundary_units(graph, degree=3):
+    active_units = get_boundary(graph, degree)
+    return active_units,\
+           *_get_per_stp(active_units, nb_steps)
 
 # ======================================================================
 # === HELPERS ===
