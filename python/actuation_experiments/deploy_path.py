@@ -9,9 +9,13 @@ import configuration
 from deployment import deploy
 from tools import create_dir_hierarchy, gif_to_img_duration
 
+TARGET_PERCENT = 100 # bad global variable, but messy to get it down to `_get_percents`
 
-def deploy_path(input_path, nb_steps, category, surroundings=True, force_smalest_dep=False, gif_duration=4, strategies=None, baseline=True, verbose=True):
+def deploy_path(input_path, nb_steps, category, surroundings=True, force_smalest_dep=False, target_percent=100, gif_duration=4, strategies=None, baseline=True, verbose=True):
        
+    global TARGET_PERCENT
+    TARGET_PERCENT = target_percent
+    
     if strategies==None: strategies=get_strategies()
     nb_strategies = len(strategies)
         
@@ -21,7 +25,7 @@ def deploy_path(input_path, nb_steps, category, surroundings=True, force_smalest
     graph = create_graph(input_data['umbrella_connectivity'], curr_um)
 
     bumps, depressions = find_extrems(graph, surroundings=surroundings)
-    surrounds_bumps = surround_bumps(graph, bumps)[-1]
+    surrounds_bumps = surround_bumps(graph, bumps)[-2] # -1 is the bumps
     paths = shortes_paths(graph, bumps, depressions, force_smalest_dep=force_smalest_dep)
     
     # check that all strategies are compatible with nb_steps
@@ -108,7 +112,7 @@ def find_extrems(graph, surroundings=True, drop_extrems_at_boundary=False, drop_
         is_bump = True
         is_depression = True
         if drop_extrems_at_boundary and graph_copy.degree(node)<degree: continue
-        neighbors = surround_bumps(graph, [node])[-1] if surroundings else graph_copy.neighbors(node)
+        neighbors = surround_bumps(graph, [node])[-2] if surroundings else graph_copy.neighbors(node) # -1 is bumps, -2 is 1st level surroundings
         # if compute 'surround_bumps' with graph_copy, we can have some node with only one link as `bump`
         # and then, the surroundings are not complete... | As it do not alter the graph, it's totally fine
         
@@ -162,7 +166,7 @@ def surround_bumps(graph, bumps, level=1, verbose=False, pos=None,
     shared_graph = graph.copy()
     nx.set_node_attributes(shared_graph, False, 'visited')
     
-    surr_levels = []
+    surr_levels = [bumps]
     for l in range(level):
         surr_level = []
         for key,(curr, prev) in dic.items():
@@ -239,10 +243,12 @@ def draw_height_path(graph, pos, paths, min_size=100, max_size=600, colors_defau
 # === Strategies ===
 # ======================================================================
 def get_strategies():
-    return *_get_paths_strategies(),\
-           *_get_bumps_strategies(),\
+    return *_get_paths_strategies(),    \
+           *_get_bumps_strategies(),    \
            *_get_actuators_strategies(),\
-            _boundary_units
+            _boundary_units,            \
+            _increasing_height
+    
 # -----------
 # --- ALL ---
 # -----------
@@ -366,16 +372,23 @@ def _get_actuators_strategies():
 # ----------------
 # --- BOUNDARY ---
 # ----------------
-def _boundary_units(graph, degree=3):
+def _boundary_units(graph, nb_steps, degree=3):
     active_units = get_boundary(graph, degree)
     return active_units,\
            *_get_per_stp(active_units, nb_steps)
 
+def _increasing_height(graph):
+    increasing_height = [x[0] for x in sorted(graph.nodes.data(), key=lambda x: x[1]['height'])]
+    active_units = [increasing_height[:i+1] for i in range(len(increasing_height))] # cumulative
+    nb_steps = len(active_units)
+    return active_units,\
+           *_get_per_stp(active_units, nb_steps)
+    
 # ======================================================================
 # === HELPERS ===
 #======================================================================
 def _get_percents(pahts):
-    return [[100]*len(p) for p in pahts]
+    return [[TARGET_PERCENT]*len(p) for p in pahts]
 
 def _get_steps(pahts, nb_steps):
     nb_phase = len(pahts)
