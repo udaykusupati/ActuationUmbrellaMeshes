@@ -116,10 +116,24 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
 
             target_heights = percent_to_height(init_heights, plate_thickness, active_cells, target_percents_s)
             target_height_multiplier = set_target_height(curr_um.numUmbrellas(), plate_thickness, active_cells, target_heights)
+            
+            # print(f"step {s = }")
+            # print(f'{plate_thickness = }')
+            # print(f'{target_height_multiplier = }')
+            # print(f'{dep_weights = }')
+            # print(f'{prev_percents = }')
+            # print(f'{target_percents_s = }')
+            # print(f'before : {curr_um.umbrellaHeights = }')
+            
+            
             success, _ = deploy_umbrella_pin_rigid_motion(curr_um,
                                                           plate_thickness,
                                                           target_height_multiplier,
                                                           dep_weights=dep_weights)
+            
+            # print(f'after : {curr_um.umbrellaHeights = }')
+            
+            
             if success:
                 heights.append(curr_um.umbrellaHeights)
                 energies.append(list(allEnergies(curr_um).values()))
@@ -177,11 +191,11 @@ def img_to_gif_1D(path, stress_type, duration=500, loop=0):
     img_to_gif_heights_1D(path,              duration=duration, loop=loop)
     img_to_gif_energies  (path,              duration=duration, loop=loop)
     
-def img_to_gif_2D(path, stress_type, duration=500, loop=2):
+def img_to_gif_2D(path, stress_type, duration=500, loop=0):
     _img_to_gif_stress_2D (path, stress_type, duration=duration, loop=loop)
     _img_to_gif_heights_2D(path,              duration=duration, loop=loop)
     
-def img_to_gif_all(path, gif_name, duration=500, loop=2, steps=None):
+def img_to_gif_all(path, gif_name, duration=500, loop=0, steps=None):
     '''
     create gif `gif_name` with all files at path
     '''

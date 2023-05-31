@@ -75,7 +75,7 @@ def non_regular_grid(mesh_path, degree, category, name, steps, deployment, activ
 
 def deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
            active_cells, target_percents, init_heights, plate_thickness,
-           gif_duration=4,deployment='linear', verbose=False):
+           gif_duration=4, deployment='linear', verbose=False):
     
     write_metadata(path, folder_name, degree, rows, cols, steps, active_cells, target_percents)
     
@@ -95,7 +95,7 @@ def deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
                            show_plot=verbose)
         '''
         # should be done after deployement, but required for each phase...
-        # -not so meaningful-
+        # >not so meaningful<
         if (rows==1 or cols==1):
             projection2D(input_data['umbrella_connectivity'],
                          curr_um, active_c, target_p,
@@ -145,5 +145,5 @@ def deploy(path, folder_name, input_data, curr_um, degree, rows, cols, steps,
                                 verbose=verbose)
     
     if verbose: print(f'\n-> generate GIFs.')
-    img_to_gif(path, deployment, stress_type, steps, duration=img_duration, loop=2, verbose=verbose)
+    img_to_gif(path, deployment, stress_type, steps, duration=img_duration, loop=0, verbose=verbose)
     

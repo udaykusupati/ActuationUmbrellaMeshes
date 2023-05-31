@@ -1,5 +1,5 @@
 data_folder_path = './../../data/'
-igloo_coars_path = './igloo_rum.json.gz' # 44
+igloo_coarse_path = './igloo_rum.json.gz' # 44
 igloo_path = data_folder_path+'igloo.json.gz' # 57
 squid_path = data_folder_path+'squidward_highres.json.gz' # 143
 saddle_path = data_folder_path+'saddle_5t.json.gz' # 31

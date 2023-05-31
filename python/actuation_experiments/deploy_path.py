@@ -10,7 +10,7 @@ from deployment import deploy
 from tools import create_dir_hierarchy, gif_to_img_duration
 
 
-def deploy_path(input_path, nb_steps, category, gif_duration=4, strategies=None, baseline=True, verbose=True):
+def deploy_path(input_path, nb_steps, category, surroundings=True, force_smalest_dep=False, gif_duration=4, strategies=None, baseline=True, verbose=True):
        
     if strategies==None: strategies=get_strategies()
     nb_strategies = len(strategies)
@@ -20,9 +20,9 @@ def deploy_path(input_path, nb_steps, category, gif_duration=4, strategies=None,
 
     graph = create_graph(input_data['umbrella_connectivity'], curr_um)
 
-    bumps, depressions = find_extrems(graph)
+    bumps, depressions = find_extrems(graph, surroundings=surroundings)
     surrounds_bumps = surround_bumps(graph, bumps)[-1]
-    paths = shortes_paths(graph, bumps, depressions)
+    paths = shortes_paths(graph, bumps, depressions, force_smalest_dep=force_smalest_dep)
     
     # check that all strategies are compatible with nb_steps
     for strat  in strategies:
@@ -95,7 +95,7 @@ def create_graph(connectivity, curr_um):
     
     return graph
     
-def find_extrems(graph, surroundings=False, drop_extrems_at_boundary=True, drop_boudary=False, degree=3):
+def find_extrems(graph, surroundings=True, drop_extrems_at_boundary=False, drop_boudary=False, degree=3):
     bumps = []
     depression = []
     
@@ -120,7 +120,8 @@ def find_extrems(graph, surroundings=False, drop_extrems_at_boundary=True, drop_
         elif (is_depression): depression.append(node)
     return bumps, depression
 
-def surround_bumps(graph, bumps, level=1, verbose=False, pos=None):
+def surround_bumps(graph, bumps, level=1, verbose=False, pos=None,
+                   min_size=100, max_size=600, colors_default=None, with_labels=False):
     def surround_neigh(graph, curr_surr, prev_surr):
         # first level is quite different
         if len(curr_surr) == 1:
@@ -171,7 +172,7 @@ def surround_bumps(graph, bumps, level=1, verbose=False, pos=None):
             surr_level.extend(surr)
             dic[key] = surr, p
         if surr_level==[] : break # no more medium to propagate the wave
-        if (verbose): draw_height_extrems(graph, pos, bumps, surr_level, with_labels=True)
+        if (verbose): draw_height_extrems(graph, pos, bumps, surr_level, min_size=min_size, max_size=max_size, colors_default=colors_default, with_labels=with_labels)
         surr_levels.append(surr_level)
     
     return list(reversed(surr_levels)) # bumps are last steps
