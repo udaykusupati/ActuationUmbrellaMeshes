@@ -11,6 +11,8 @@ from pipeline_helper import allEnergies
 
 import helpers_tools as help_
 
+import registration
+
 # ======================================================================
 # =============================================================== GRID =
 # ======================================================================
@@ -106,6 +108,7 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
         percents_per_steps = []
         heights            = []
         energies           = []
+        rt_meanH           = []
 
         # header for energies.csv
         energies.append(allEnergies(curr_um).keys()) # file will be read back as dict
@@ -115,28 +118,27 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
             percents_per_steps.append(target_percents_s)
 
             target_heights = percent_to_height(init_heights, plate_thickness, active_cells, target_percents_s)
-            target_height_multiplier = set_target_height(curr_um.numUmbrellas(), plate_thickness, active_cells, target_heights)
-            
-            # print(f"step {s = }")
-            # print(f'{plate_thickness = }')
-            # print(f'{target_height_multiplier = }')
-            # print(f'{dep_weights = }')
-            # print(f'{prev_percents = }')
-            # print(f'{target_percents_s = }')
-            # print(f'before : {curr_um.umbrellaHeights = }')
-            
-            
+            target_height_multiplier = set_target_height(curr_um.numUmbrellas(), plate_thickness, active_cells, target_heights)           
+
             success, _ = deploy_umbrella_pin_rigid_motion(curr_um,
                                                           plate_thickness,
                                                           target_height_multiplier,
                                                           dep_weights=dep_weights)
             
-            # print(f'after : {curr_um.umbrellaHeights = }')
-            
-            
+            is_plate_collided = curr_um.umbrellaHeights < plate_thickness
+            if (verbose and is_plate_collided.any()):
+                print(f'  /!\ plates enter each others at phase {phase+1:0>2}, step {s:0>2}. /!\\')
+                print(f'{plate_thickness = }')
+                print(*zip(*np.where(is_plate_collided), curr_um.umbrellaHeights[is_plate_collided]), sep='\n')
+
             if success:
                 heights.append(curr_um.umbrellaHeights)
-                energies.append(list(allEnergies(curr_um).values()))
+                all_energies = allEnergies(curr_um)
+                energies.append(list(all_energies.values()))
+                rt_meanH.append([*registration.register_points(curr_um.XJointPositions().reshape(-1,3),
+                                                               curr_um.XJointTgtPositions().reshape(-1,3)),
+                                 curr_um.umbrellaHeights.mean()-plate_thickness])
+                    
                 for stress_type in stress_types:
                     path_stresses = path+f'/{deployment}_deployment/stresses/{stress_type}/values'
                     max_stress_step = help_.get_max_stress_matrix(curr_um, stress_type)
@@ -147,14 +149,17 @@ def deploy_in_phase(curr_um, connectivity, init_heights, plate_thickness, active
                     # retain max deployment stresses
                     is_max = max_stress_step > max_stresses_all[stress_type]
                     max_stresses_all[stress_type][is_max] = max_stress_step[is_max]
+                    
 
                 if verbose: print(f'step {s:0>2}/{steps[phase]:0>2} saved.')
 
             else: raise ValueError(f'did not converge at step {s}.')
 
-        # write Heights and Energies
+        # write Heights, [R,t, meanH] and Energies
         _write_rows(path+f'/{deployment}_deployment/heights/values/phase{phase+1:0>2}_heights.csv',
                     np.array(heights)-plate_thickness)
+        _write_rows(path+f'/{deployment}_deployment/heights/values/phase{phase+1:0>2}_rt_meanH.csv',
+                    rt_meanH)
         _write_rows(path+f'/{deployment}_deployment/energies/values/phase{phase+1:0>2}_energies.csv',
                     energies)
         # write Percnets and Active Units

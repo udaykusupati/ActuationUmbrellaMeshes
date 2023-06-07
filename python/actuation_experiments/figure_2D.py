@@ -93,7 +93,8 @@ def fig_height2D(connectivity, active_cells, plate_thickness, init_heights, heig
 
     fig, ax = get_ax()
     help_.ax_dot_active_cell(ax, indexes, percents,  positions, markersize=1, edgecolor='white')
-    help_.ax_dot_active_cell(ax, active_cells, percents[active_cells], positions, markersize=1, edgecolor='black')
+    if active_cells != []:
+        help_.ax_dot_active_cell(ax, active_cells, percents[active_cells], positions, markersize=1, edgecolor='black')
     help_.ax_arms(ax, connectivity, positions)
     
     ax.set_title(title)
@@ -120,7 +121,7 @@ def figs_stress_curve(stresses, xylim, paths, show_plot=False):
                 if phase>0 and step==0: continue
                 if path==0:
                     axes.append(get_ax())
-                    path_all.append([path.format(phase+1, step/xylim[0]*100) for path in paths])
+                    path_all.append([path.format(phase+1, step) for path in paths])
                 
                 max_s.append(max(stress_step))
                 
@@ -153,7 +154,7 @@ def figs_stress_scatter(stresses, xylim, paths, ordered=True, show_plot=False):
                 if phase>0 and step==0: continue
                 if path==0:
                     axes.append(get_ax())
-                    path_all.append([path.format(phase+1, step/xylim[0]*100) for path in paths])
+                    path_all.append([path.format(phase+1, step) for path in paths])
                     
                 if ordered: stress_step = np.flip(np.sort(stress_step))
                 

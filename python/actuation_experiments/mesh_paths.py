@@ -1,9 +1,0 @@
-data_folder_path = './../../data/'
-igloo_coarse_path = './igloo_rum.json.gz' # 44
-igloo_path = data_folder_path+'igloo.json.gz' # 57
-squid_path = data_folder_path+'squidward_highres.json.gz' # 143
-saddle_path = data_folder_path+'saddle_5t.json.gz' # 31
-peanut_path = data_folder_path+'peanut_fp_low.json.gz' # 63
-lilium_path = data_folder_path+'lilium.json.gz' # 87
-hive_path = data_folder_path+'hive.json.gz' # 118 (hole inside)
-trililium_path = data_folder_path+'trililium.json.gz' # 83

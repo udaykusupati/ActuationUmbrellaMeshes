@@ -180,7 +180,7 @@ def deploy_umbrella_pin_rigid_motion(curr_um, plate_thickness, target_height_mul
     OPTS.gradTol = 1e-8
     OPTS.verbose = 1
     OPTS.beta = 1e-6
-    OPTS.niter = 300 # [RK]
+    OPTS.niter = 600 # default value is 300
     OPTS.verboseNonPosDef = False
     
     eqays = EquilibriumSolveAnalysis(curr_um)

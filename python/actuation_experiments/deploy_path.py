@@ -7,16 +7,16 @@ sys.path.append('..')
 import configuration
 
 from deployment import deploy
-from tools import create_dir_hierarchy, gif_to_img_duration
+from tools import create_dir_hierarchy
 
-TARGET_PERCENT = 100 # bad global variable, but messy to get it down to `_get_percents`
+TARGET_PERCENT = 100 # bad habit of global variable, but messy to get it down to `_get_percents`
 
-def deploy_path(input_path, nb_steps, category, surroundings=True, force_smalest_dep=False, target_percent=100, gif_duration=4, strategies=None, baseline=True, verbose=True):
-       
+def deploy_path(input_path, nb_steps, category, surroundings=True, level=1, drop_extrems_at_boundary=False, drop_boudary=False, force_smalest_dep=False, target_percent=100, gif_duration=4, strategies=None, baseline=True, verbose=True):
+    
     global TARGET_PERCENT
     TARGET_PERCENT = target_percent
     
-    if strategies==None: strategies=get_strategies()
+    if strategies==None: strategies=get_path_strategies()
     nb_strategies = len(strategies)
         
     io, input_data, target_mesh, curr_um, plate_thickness_scaled, target_height_multiplier = \
@@ -24,8 +24,7 @@ def deploy_path(input_path, nb_steps, category, surroundings=True, force_smalest
 
     graph = create_graph(input_data['umbrella_connectivity'], curr_um)
 
-    bumps, depressions = find_extrems(graph, surroundings=surroundings)
-    surrounds_bumps = surround_bumps(graph, bumps)[-2] # -1 is the bumps
+    bumps, depressions = find_extrems(graph, surroundings=surroundings, level=level, drop_extrems_at_boundary=drop_extrems_at_boundary, drop_boudary=drop_boudary)
     paths = shortes_paths(graph, bumps, depressions, force_smalest_dep=force_smalest_dep)
     
     # check that all strategies are compatible with nb_steps
@@ -66,7 +65,7 @@ def deploy_path(input_path, nb_steps, category, surroundings=True, force_smalest
         
         # re-generate curr_um for undeployed plot...
         io, input_data, target_mesh, curr_um, plate_thickness_scaled, target_height_multiplier = \
-        configuration.parse_input(input_path, handleBoundary = False, isHex = False, use_target_surface = False)
+            configuration.parse_input(input_path, handleBoundary = False, isHex = False, use_target_surface = False)
         
         active_units, target_percents, steps = strat(paths, nb_steps)
         
@@ -99,7 +98,9 @@ def create_graph(connectivity, curr_um):
     
     return graph
     
-def find_extrems(graph, surroundings=True, drop_extrems_at_boundary=False, drop_boudary=False, degree=3):
+def find_extrems(graph, surroundings=True, level=1, drop_extrems_at_boundary=False, drop_boudary=False, degree=3):
+    if (surroundings and level<1): raise ValueError("surrounding level should be positive int")
+    
     bumps = []
     depression = []
     
@@ -112,7 +113,10 @@ def find_extrems(graph, surroundings=True, drop_extrems_at_boundary=False, drop_
         is_bump = True
         is_depression = True
         if drop_extrems_at_boundary and graph_copy.degree(node)<degree: continue
-        neighbors = surround_bumps(graph, [node])[-2] if surroundings else graph_copy.neighbors(node) # -1 is bumps, -2 is 1st level surroundings
+        neighbors = [s0 for s in surround_bumps(graph, [node], level=level)[:-1] for s0 in s] if surroundings \
+                    else graph_copy.neighbors(node)
+        # surround_bumps: -1 is bumps, -2 is 1st level surroundings, -3 is 2nd level... need to be flaten
+        
         # if compute 'surround_bumps' with graph_copy, we can have some node with only one link as `bump`
         # and then, the surroundings are not complete... | As it do not alter the graph, it's totally fine
         
@@ -165,6 +169,7 @@ def surround_bumps(graph, bumps, level=1, verbose=False, pos=None,
         dic[b] = [b], []
     shared_graph = graph.copy()
     nx.set_node_attributes(shared_graph, False, 'visited')
+    nx.set_node_attributes(shared_graph, {key:True for key in bumps}, 'visited') # set bumps as visited
     
     surr_levels = [bumps]
     for l in range(level):
@@ -242,12 +247,10 @@ def draw_height_path(graph, pos, paths, min_size=100, max_size=600, colors_defau
 # ======================================================================
 # === Strategies ===
 # ======================================================================
-def get_strategies():
+def get_path_strategies():
     return *_get_paths_strategies(),    \
            *_get_bumps_strategies(),    \
-           *_get_actuators_strategies(),\
-            _boundary_units,            \
-            _increasing_height
+           *_get_actuators_strategies()
     
 # -----------
 # --- ALL ---
@@ -377,9 +380,9 @@ def _boundary_units(graph, nb_steps, degree=3):
     return active_units,\
            *_get_per_stp(active_units, nb_steps)
 
-def _increasing_height(graph):
-    increasing_height = [x[0] for x in sorted(graph.nodes.data(), key=lambda x: x[1]['height'])]
-    active_units = [increasing_height[:i+1] for i in range(len(increasing_height))] # cumulative
+def increasing_height(graph):
+    increasing_heights = [x[0] for x in sorted(graph.nodes.data(), key=lambda x: x[1]['height'])]
+    active_units = [increasing_heights[:i+1] for i in range(len(increasing_heights))] # cumulative
     nb_steps = len(active_units)
     return active_units,\
            *_get_per_stp(active_units, nb_steps)

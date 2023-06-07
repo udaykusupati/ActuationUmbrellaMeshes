@@ -6,7 +6,7 @@ from tools import img_to_gif_stress_1D,\
                   gif_to_img_duration
 
 def compare(paths, name, nb_steps, stresses=['VonMises'], gif_duration=5, loop=0, deployments=None):
-    if paths==[]: return
+    if len(paths)<2 : return
     head, tail = os.path.split(os.path.normpath(paths[0]))
     save_dir = f'{head}/compare_{name}'
     

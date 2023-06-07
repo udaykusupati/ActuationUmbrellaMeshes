@@ -33,8 +33,8 @@ def generate_stresses_2D(path, phase, deployment,
     for f in ['jpg', 'png']:
         path_stresses.append(f'{path}/{deployment}_deployment/stresses/{stress_type}/{f}/phase{(phase+1):0>2}_'+'{{}}_{:0>3.0f}Deployed'+f'.{f}')
     
-    # random perturbations does affect undeployed state
-    deployed = False
+    # ensure stress 0 for undeployed state (random perturbation)
+    deployed = False if phase==0 else True # only undeployed at phase 0, step 0
     
     for step, (s_matrix, percents) in enumerate(zip(stresses_per_steps, percents_per_steps)):
         if phase>0 and step==0: continue
