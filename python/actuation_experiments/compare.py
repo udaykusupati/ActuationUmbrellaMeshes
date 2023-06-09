@@ -10,6 +10,7 @@ def compare(paths, name, nb_steps, stresses=['VonMises'], gif_duration=5, loop=0
     head, tail = os.path.split(os.path.normpath(paths[0]))
     save_dir = f'{head}/compare_{name}'
     
+    print(f'{save_dir = }')
     if deployments==None: deployments = ['linear']*len(paths)
     
     duration = gif_to_img_duration(gif_duration, nb_steps)
